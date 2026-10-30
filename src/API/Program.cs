@@ -1,18 +1,23 @@
 var builder = WebApplication.CreateBuilder(args);
+const string BlazorCors = "BlazorClient";
+var origins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>() ?? [];
 
 // Add services to the container.
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
 builder.Services.AddOpenApi();
+builder.Services.AddCors(o => o.AddPolicy(BlazorCors, p => p.WithOrigins(origins).AllowAnyHeader().AllowAnyMethod()));
 
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
+app.UseCors(BlazorCors);
 if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
 }
 
 app.UseHttpsRedirection();
+
 
 var summaries = new[]
 {
