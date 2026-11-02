@@ -10,6 +10,7 @@ A full-stack web application built with a Blazor WebAssembly front end and an AS
 | Backend  | `src/API`     | ASP.NET Core Web API (minimal APIs + OpenAPI)                     |
 | Contracts| `src/Shared`  | DTOs / request & response records shared by API and Blazor        |
 | Domain   | `src/Domain`  | Game rules: board, tiles, treasure/mine placement (server only)   |
+| Tests    | `Tests`       | xUnit unit tests (Domain) and integration tests (API)             |
 | Platform | —             | .NET 10 (`net10.0`), C#                                           |
 | Solution | `Treasure-sweeper.slnx` | Visual Studio solution (XML format)                     |
 
@@ -28,6 +29,7 @@ TreasureSweeper/
 ├── Treasure-sweeper.slnx     # Solution
 ├── Treasure-sweeper.slnLaunch# Shared VS startup profile (API + Blazor)
 ├── run.ps1                   # Starts API + Blazor from the CLI
+├── Tests/                    # xUnit tests — references Domain, Shared + API
 └── src/
     ├── API/      # Web API — references Shared + Domain
     ├── Blazor/   # Frontend — references Shared ONLY
@@ -91,6 +93,36 @@ dotnet run --project src/Blazor --launch-profile https
 | API    | https://localhost:7235    |
 | OpenAPI| https://localhost:7235/openapi/v1.json |
 
+## Tests
+
+The xUnit test project lives in `Tests/`:
+
+```
+Tests/
+├── Domain/   # Unit tests for game rules — fast, no web server
+└── Api/      # Integration tests — runs the API in memory (WebApplicationFactory)
+```
+
+### Running the tests
+```bash
+dotnet test                                                     # all tests
+dotnet test Tests --filter "FullyQualifiedName~Tests.Domain"    # Domain tests only
+dotnet test Tests --filter "FullyQualifiedName~GameTests.Join"  # one group of tests
+```
+In Visual Studio, use **Test → Test Explorer**.
+
+### Conventions
+- One test class per type under test, e.g. `GameTests` for `Game`.
+- Test names follow `Method_Situation_ExpectedResult`, e.g. `Join_NinthPlayer_FailsWithGameFull`.
+- Put game rules in **Domain** tests. Use **API** tests only for HTTP details: status codes, JSON field names, headers.
+- API tests share one `GameRegistry` per test class. Each test must create its own game (random PIN) and never hard-code a PIN such as `1234`.
+- Check controller responses as raw `JsonElement`, not deserialized DTOs. The Oplà firmware only reads fixed field names, so a renamed or extra field must fail the test.
+
+### Manual testing
+`src/API/API.http` calls every endpoint, and each request is labelled with its expected result.
+Start the API with `dotnet run --project src/API --launch-profile http`, then send the requests
+**top to bottom** from VS Code (REST Client extension), Visual Studio or Rider, since later requests depend on earlier ones.
+
 ## Configuration
 
 | Setting | File | Must match |
@@ -107,6 +139,7 @@ If you change a port in a `launchSettings.json`, update the matching setting abo
 2. **Domain** – implement the rule (no web/HTTP code here).
 3. **API** – add the endpoint: map Domain → DTO.
 4. **Blazor** – call the endpoint with `HttpClient` + `GetFromJsonAsync<BoardDto>()`.
+5. **Tests** – add Domain tests for the rule, and an API test if the response is read by the Oplà controller.
 
 Agree on the DTO first (step 1) — then frontend and backend can work in parallel.
 
