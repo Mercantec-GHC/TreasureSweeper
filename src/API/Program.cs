@@ -22,6 +22,7 @@ app.UseCors(BlazorCors);
 if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
+    app.UseSwaggerUI(o => o.SwaggerEndpoint("/openapi/v1.json", "TreasureSweeper API"));
 }
 
 app.UseHttpsRedirection();
