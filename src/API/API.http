@@ -1,6 +1,77 @@
 @API_HostAddress = http://localhost:5260
+@pin = 1234
 
-GET {{API_HostAddress}}/weatherforecast/
-Accept: application/json
+### Create game with fixed PIN (matches GAME_PIN in config.h) -> 201
+POST {{API_HostAddress}}/api/games
+Content-Type: application/json
 
-###
+{ "pin": "{{pin}}" }
+
+### Same PIN again -> 409
+POST {{API_HostAddress}}/api/games
+Content-Type: application/json
+
+{ "pin": "{{pin}}" }
+
+### Invalid PIN -> 400
+POST {{API_HostAddress}}/api/games
+Content-Type: application/json
+
+{ "pin": "12ab" }
+
+### Random PIN -> 201
+POST {{API_HostAddress}}/api/games
+
+### Get game -> 200
+GET {{API_HostAddress}}/api/games/{{pin}}
+
+### Unknown game -> 404
+GET {{API_HostAddress}}/api/games/0000
+
+### Start with no players -> 409
+POST {{API_HostAddress}}/api/games/{{pin}}/start
+
+### Controller joins -> 200, number 1
+POST {{API_HostAddress}}/api/controller/join
+Content-Type: application/json
+
+{ "pin": "{{pin}}", "name": "Mikkel", "deviceId": "OPLA_AABBCCDDEEFF" }
+
+### Same device again -> 200, reconnected: true, same number
+POST {{API_HostAddress}}/api/controller/join
+Content-Type: application/json
+
+{ "pin": "{{pin}}", "name": "Mikkel", "deviceId": "OPLA_AABBCCDDEEFF" }
+
+### No name -> "Arduino 2"
+POST {{API_HostAddress}}/api/controller/join
+Content-Type: application/json
+
+{ "pin": "{{pin}}", "deviceId": "OPLA_112233445566" }
+
+### Unknown PIN -> 404 { ok:false }
+POST {{API_HostAddress}}/api/controller/join
+Content-Type: application/json
+
+{ "pin": "0000", "deviceId": "OPLA_AABBCCDDEEFF" }
+
+### Start -> 200, phase Playing
+POST {{API_HostAddress}}/api/games/{{pin}}/start
+
+### New controller mid-round -> 409 { ok:false, error:"Round in progress" }
+POST {{API_HostAddress}}/api/controller/join
+Content-Type: application/json
+
+{ "pin": "{{pin}}", "deviceId": "OPLA_NEW000000000" }
+
+### Rebooted controller mid-round -> 200, reconnected
+POST {{API_HostAddress}}/api/controller/join
+Content-Type: application/json
+
+{ "pin": "{{pin}}", "deviceId": "OPLA_AABBCCDDEEFF" }
+
+### End -> 200, phase Ended
+POST {{API_HostAddress}}/api/games/{{pin}}/end
+
+### Reset -> 200, phase Waiting, same players
+POST {{API_HostAddress}}/api/games/{{pin}}/reset
