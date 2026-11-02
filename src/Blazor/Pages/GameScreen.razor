@@ -1,0 +1,115 @@
+﻿@page "/game-screen"
+
+<PageTitle>Game Screen</PageTitle>
+
+<h1>Hello, world!</h1>
+
+Welcome to your new app.
+
+<div>
+    <button class="btn btn-primary" @onclick="HostGame">Host Game</button>
+    <button class="btn btn-primary" @onclick="JoinGame">Join Game</button>
+</div>
+
+@if (lobby != null)
+{
+    <div>
+        <h2>Lobby ID: @lobby.LobbyId</h2>
+        <p>Players in Lobby:</p>
+        <ul>
+            @foreach (var player in lobby.Players)
+            {
+                <li>@player.Name</li>
+            }
+        </ul>
+    </div>
+    <InputText @bind-Value="player1.Name" placeholder="Enter your name" />
+    <button class="btn btn-primary" @onclick="() => JoinPlayer(player1)">Join Lobby</button>
+
+    <button class="btn btn-primary" @onclick="StartGame">Start Game</button>
+}
+
+
+@if (!string.IsNullOrEmpty(message))
+{
+    <div class="alert alert-info" role="alert">
+        @message
+    </div>
+}
+
+@code {
+    Lobby lobby;
+    Game game = new Game();
+    Player[] players = new Player[0];
+
+    Player player1 = new Player(1, "Player 1");
+
+    string message = string.Empty;
+
+
+    private void StartGame()
+    {
+        // Logic to start the game goes here
+    }
+
+    private void UpdateLobby()
+    {
+        // Logic to update the lobby goes here
+    }
+
+    private void JoinPlayer(Player player)
+    {
+        if (lobby == null) return;
+
+        if (lobby.Players.Contains(player))
+        {
+            message = "You are already in the lobby.";
+            return;
+        }
+        lobby.Players.Add(player);
+        message = "You have joined the lobby.";
+    }
+
+    void HostGame()
+    {
+        lobby = new Lobby();
+    }
+
+    void JoinGame()
+    {
+        // Logic to join the game goes here
+    }
+
+    public class Player
+    {
+        public int Id { get; set; }
+        public string Name { get; set; }
+        public int Score { get; set; }
+
+        public Player(int id, string name)
+        {
+            Id = id;
+            Name = name;
+            Score = 0;
+        }
+    }
+
+    public class Game
+    {
+        public List<Player> Players { get; set; } = new List<Player>();
+        public bool IsActive { get; set; }
+    }
+
+    public class Lobby
+    {
+        public int LobbyId { get; set; }
+        public List<Player> Players { get; set; } = new List<Player>();
+        public bool IsOpen { get; set; }
+
+        public Lobby()
+        {
+            LobbyId = new Random().Next(1000, 9999); // Generate a random lobby ID
+            IsOpen = true;
+        }
+    }
+}
