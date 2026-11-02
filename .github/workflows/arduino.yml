@@ -1,0 +1,25 @@
+name: Arduino
+
+on:
+  push:
+    branches: [ "main", "development" ]
+  pull_request:
+    branches: [ "main", "development" ]
+
+jobs:
+  compile-and-verify:
+
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: arduino/compile-sketches@v1
+        with:
+          fqbn: arduino:samd:mkrwifi1010
+          sketch-paths: |
+            - ./Arduino
+          libraries: |
+            - name: Arduino_MKRIoTCarrier
+            - name: WiFiNINA
+            - name: ArduinoJson
+            - name: ArduinoHttpClient
