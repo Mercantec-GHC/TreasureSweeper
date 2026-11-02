@@ -1,0 +1,11 @@
+version: 2
+updates:
+  - package-ecosystem: "nuget"
+    directories:
+      - "/src/API"
+      - "/src/Blazor"
+      - "/src/Domain"
+      - "/src/Shared"
+      - "/Tests"
+    schedule:
+      interval: "daily"
