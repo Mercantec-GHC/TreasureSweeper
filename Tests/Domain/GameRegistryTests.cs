@@ -5,7 +5,7 @@ namespace Tests.Domain;
 public class GameRegistryTests
 {
     [Fact]
-    public void Create_WithoutPin_GenerateFourDigitPin()
+    public void Create_WithoutPin_GeneratesFourDigitPin()
     {
         var result = new GameRegistry().Create();
 
@@ -77,7 +77,7 @@ public class GameRegistryTests
     }
 
     [Fact]
-    public void Find_UnknownPin_RetrunsNull()
+    public void Find_UnknownPin_ReturnsNull()
     {
         Assert.Null(new GameRegistry().Find("0000"));
     }
