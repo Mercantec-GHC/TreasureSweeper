@@ -10,6 +10,7 @@ It is a single ASP.NET Core application on **.NET 10** that serves a **Blazor Se
 | ---------- | -------------- | ----------------------------------------------------------------------------- |
 | Web host   | `src/Blazor`   | Blazor Server UI **and** minimal-API endpoints for the Oplà (one process)     |
 | Domain     | `src/Domain`   | Game rules: lobby, players, board, treasure/mine placement. No web code       |
+| Persistence| `src/Infrastructure` | EF Core + Npgsql (PostgreSQL): `DbContext` and health check. Migrations and repositories come later |
 | Contracts  | `src/Shared`   | Plain DTO records for the Oplà JSON contract. No dependencies                 |
 | Controller | `Arduino`      | Firmware for the Arduino Oplà controller                                      |
 | Tests      | `Tests`        | xUnit unit tests (Domain) and integration tests (HTTP endpoints)              |
@@ -36,7 +37,8 @@ Project references:
 
 ```
 Blazor ──► Domain
-   └─────► Shared
+   ├─────► Shared
+   └─────► Infrastructure
 Tests  ──► Blazor, Domain, Shared
 ```
 
@@ -55,6 +57,7 @@ TreasureSweeper/
     │   ├── Endpoints/        # HTTP endpoints for the Oplà (namespace API.Endpoints)
     │   ├── Mapping/          # Domain → Shared DTO mapping (namespace API.Mapping)
     │   └── API.http          # Manual requests for every endpoint
+    ├── Infrastructure/       # Database access (EF Core + PostgreSQL) — no web or UI code
     ├── Domain/               # Game logic — no project references
     └── Shared/               # DTOs — no project references, no ASP.NET dependencies
 ```
@@ -106,6 +109,7 @@ If the game ever needs several server instances, this is the point to revisit: l
 
 - **Domain stays clean.** No `Microsoft.AspNetCore.*`, no `HttpClient`, no UI types.
 - **Game rules live in Domain only.** Not in endpoints, not in Razor components.
+- **Domain never references Infrastructure.** The database depends on the rules, not the other way round.
 - **Endpoints stay thin.** Parse → call Domain → map to DTO → return.
 - **Never render hidden information.** Blazor Server keeps code and data on the server, but whatever is rendered into the page is sent to the browser. Do not put the contents of undug tiles (treasure or mine) into the markup, not even hidden with CSS. Render only what the player is allowed to see.
 - **Do not change Oplà field names** without changing the firmware. The tests check this.
@@ -150,6 +154,37 @@ dotnet run --project src/Blazor --launch-profile https
 | OpenAPI     | https://localhost:7033/openapi/v1.json   |
 
 **The Oplà uses plain HTTP.** HTTPS redirection is deliberately off, because the controller cannot follow a redirect and HTTPS on the board needs root certificates. Use the `http://` address on port **5288**. On a real LAN, set the Oplà's host to your PC's IP address (not `localhost`) and allow port 5288 through the firewall.
+
+## Database
+
+PostgreSQL runs in Docker. The app talks to it through EF Core (`src/Infrastructure`).
+
+**One-time setup (per developer)**
+
+1. Copy `.env.example` to `.env` (`Copy-Item .env.example .env`) and set your own `POSTGRES_PASSWORD`. `.env` is git-ignored, so every clone needs its own; never commit it.
+2. Start the database: `docker compose up -d`
+3. Check it: `docker compose ps` should show `healthy`.
+4. Give the app its connection string, using the same user, password, database and port as your `.env`:
+   ```powershell
+   dotnet user-secrets init --project src/Blazor
+   dotnet user-secrets set "ConnectionStrings:Default" "Host=127.0.0.1;Port=5432;Database=treasuresweeper;Username=treasure;Password=<your password>" --project src/Blazor
+   ```
+   Alternatively set the environment variable `ConnectionStrings__Default`.
+   Use `127.0.0.1`, not `localhost`: the container port is published on IPv4 only, and `localhost` can resolve to IPv6 (`[::1]`), which fails with *Failed to connect to [::1]:5432*.
+5. Run the app and open `https://localhost:7033/health`. `Healthy` means the app can reach the database.
+
+**Useful commands**
+
+| Command | What it does |
+| ------- | ------------ |
+| `docker compose up -d` / `docker compose down` | Start / stop the database. The data is kept in the `pgdata` volume |
+| `docker compose down -v` | Stop **and delete** all data (also needed after changing `POSTGRES_*` in `.env`) |
+| `docker compose logs database` | Show the database log |
+
+**Notes**
+- The connection string is read the first time the database is needed, so the app starts, and the tests run, without a database. `/health` returns `503 Unhealthy` until it is configured and reachable.
+- Only the `Default` connection string is used. Never commit passwords or real connection strings.
+- The schema, migrations and seed data are not part of this setup yet.
 
 ## Tests
 
@@ -206,6 +241,8 @@ Agree on the DTO and the Domain API first (steps 1–2); then the screen, the en
 | *NET::ERR_CERT_AUTHORITY_INVALID* in the browser | `dotnet dev-certs https --trust`, restart browser |
 | *Address already in use* | A previous instance is still running — stop the `Blazor.exe` process |
 | Build error *file is being used by another process* | Two builds ran at once — use `run.ps1` (it builds once) |
+| `/health` returns 503, log says *Failed to connect to [::1]:5432* | Use `Host=127.0.0.1` in the connection string |
+| `/health` returns 503 | No `.env` on this clone? Is `docker compose ps` healthy? Is `ConnectionStrings:Default` set (user secrets) and does it match `.env`? |
 | Screen stops updating | The browser lost its connection; reload. Game state is kept on the server |
 
 ## Building for Production
