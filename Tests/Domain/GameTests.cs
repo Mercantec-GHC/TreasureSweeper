@@ -227,5 +227,50 @@ public class GameTests
         Assert.True(game.Start().Success);
         Assert.Equal(GamePhase.Playing, game.Phase);
     }
+
+    [Fact]
+    public void Start_NewRound_GeneratesNewBoard()
+    {
+        var game = GameWithPlayers(2);
+        game.Start(new Random(1));
+        var first = game.Board;
+        game.End();
+        game.Reset();
+
+        game.Start(new Random(2));
+
+        Assert.NotSame(first, game.Board);
+    }
+
+    [Theory]
+    [InlineData(1)]
+    [InlineData(8)]
+    public void Start_WithPlayers_CreatesBoardWithSpawnPerPlayer(int players)
+    {
+        var game = GameWithPlayers(players);
+        game.Start();
+        Assert.Equal(players, game.Board?.Spawns.Count);
+    }
+
+    [Fact]
+    public void Start_NoPlayers_CreatesNoBoard()
+    {
+        var game = GameWithPlayers(0);
+        game.Start();
+
+        Assert.Null(game.Board);
+    }
     
+
+    [Fact]
+    public void Reset_AfterRound_ClearsBoard()
+    {
+        var game = GameWithPlayers(2);
+        game.Start();
+        game.End();
+
+        game.Reset();
+
+        Assert.Null(game.Board);
+    }
 }
