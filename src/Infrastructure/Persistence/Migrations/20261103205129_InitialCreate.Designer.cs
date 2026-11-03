@@ -12,7 +12,7 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Infrastructure.Persistence.Migrations
 {
     [DbContext(typeof(TreasureSweeperDbContext))]
-    [Migration("20261103204010_InitialCreate")]
+    [Migration("20261103205129_InitialCreate")]
     partial class InitialCreate
     {
         /// <inheritdoc />
@@ -76,8 +76,7 @@ namespace Infrastructure.Persistence.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("EndedAt")
-                        .IsUnique();
+                    b.HasIndex("EndedAt");
 
                     b.ToTable("Rounds");
                 });

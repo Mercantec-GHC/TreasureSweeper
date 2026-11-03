@@ -73,8 +73,7 @@ namespace Infrastructure.Persistence.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("EndedAt")
-                        .IsUnique();
+                    b.HasIndex("EndedAt");
 
                     b.ToTable("Rounds");
                 });

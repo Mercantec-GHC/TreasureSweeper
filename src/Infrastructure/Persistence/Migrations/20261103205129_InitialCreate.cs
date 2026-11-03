@@ -104,8 +104,7 @@ namespace Infrastructure.Persistence.Migrations
             migrationBuilder.CreateIndex(
                 name: "IX_Rounds_EndedAt",
                 table: "Rounds",
-                column: "EndedAt",
-                unique: true);
+                column: "EndedAt");
         }
 
         /// <inheritdoc />
