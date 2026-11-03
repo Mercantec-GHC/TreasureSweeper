@@ -1,11 +1,13 @@
 using API.Endpoints;
 using Blazor;
 using Domain.Games;
+using Infrastructure;
 
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddRazorComponents().AddInteractiveServerComponents();
 builder.Services.AddSingleton<GameRegistry>();
+builder.Services.AddInfrastructure();
 builder.Services.AddOpenApi();
 builder.Services.AddProblemDetails();
 
@@ -29,6 +31,7 @@ app.MapStaticAssets();
 app.MapRazorComponents<App>().AddInteractiveServerRenderMode();
 app.MapGameEndpoints();
 app.MapControllerEndpoints();
+app.MapHealthChecks("/health");
 
 app.Run();
 
