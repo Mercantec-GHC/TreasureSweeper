@@ -15,6 +15,14 @@ uint8_t rawMask = 0;
 uint8_t keys = 0;
 uint32_t lastInputPoll = 0;
 
+// ligts response
+uint8_t ledR = 0;
+uint8_t ledG = 0;
+uint8_t ledB = 0;
+uint32_t ledStartTime = 0;
+const uint32_t LED_DURATION = 200;
+bool ledActive = false;
+
 ControllerClient transport;
 String playerId;
 String deviceId;
@@ -130,7 +138,7 @@ bool requestJson(const char *endpoint, JsonDocument *request, JsonDocument &repl
     lastHttpStatus = response.status;
     ControllerBodyStream bodyStream(transport, response.chunked, response.length);
     JsonDocument filter;
-    const char *fields[] = {"ok", "playerId", "error", "message", "side"};
+    const char *fields[] = {"ok", "playerId", "error", "message", "side", "color", "event"};
     for (const char *field : fields) filter[field] = true;
     DeserializationError error = deserializeJson(
       reply, bodyStream, DeserializationOption::Filter(filter));
@@ -149,6 +157,14 @@ bool requestJson(const char *endpoint, JsonDocument *request, JsonDocument &repl
     Serial.println(lastError);
     return false;
   }
+  if (reply["color"].is<JsonObject>()) {
+  ledR = reply["color"]["r"] | 0;
+  ledG = reply["color"]["g"] | 0;
+  ledB = reply["color"]["b"] | 0;
+
+  setAllLeds(ledR, ledG, ledB);
+  }
+
   if (lastHttpStatus >= 200 && lastHttpStatus < 300) return true;
   lastError = reply["error"] | (reply["message"] | "Forespoergsel afvist");
   Serial.println(String("HTTP ") + lastHttpStatus + ": " + lastError);
@@ -272,6 +288,38 @@ bool repeatKey(int key){
   return false;
 }
 
+void setAllLeds(uint8_t r, uint8_t g, uint8_t b) {
+  carrier.leds.clear();
+
+  for (int i = 0; i < 5; i++) {
+    carrier.leds.setPixelColor(i, r, g, b);
+  }
+
+  carrier.leds.show();
+  ledStartTime = millis();
+  ledActive = true;
+}
+
+void updateLeds() {
+  if (ledActive && millis() - ledStartTime >= LED_DURATION) {
+    carrier.leds.clear();
+    carrier.leds.show();
+    ledActive = false;
+  }
+  // only for testing delete later 
+  static bool tested = false;
+  if (!tested) {
+    setAllLeds(255, 0, 0); 
+    tested = true;
+  }
+}
+
+// void updateLeds(unsigned long now ){
+//   carrier.leds.clear();
+//   carrier.leds.setPixelColor(0, 80, 50, 0);
+//   carrier.leds.show();
+// }
+
 void setup() {
 Serial.begin(115200);
 uint32_t started = millis();
@@ -294,6 +342,7 @@ while (!Serial && millis() - started < 1500) {
 }
 
 void loop() {
+  updateLeds();
 networkUsed = false;
 readKeys();
 if (!ensureWifi()) {inputs.clear(); delay(5); return;}
