@@ -37,7 +37,12 @@ Welcome to your new app.
     </div>
 }
 
+
+<GameDisplay @ref="gameDisplay" />
+
+
 @code {
+    private GameDisplay? gameDisplay;
     Lobby lobby = new();
     Game game = new Game();
     Player[] players = new Player[0];
@@ -46,10 +51,26 @@ Welcome to your new app.
 
     string message = string.Empty;
 
+    int mapSize = 10;
 
-    private void StartGame()
+    int[] map =
+        {
+            0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+            0, 1, 1, 1, 1, 1, 1, 1, 1, 0,
+            0, 1, 2, 0, 0, 0, 0, 2, 1, 0,
+            0, 1, 0, 1, 1, 1, 1, 0, 1, 0,
+            0, 1, 0, 1, 0, 0, 1, 0, 1, 0,
+            0, 1, 0, 1, 1, 1, 1, 0, 1, 0,
+            0, 1, 2, 0, 0, 0, 0, 2, 1, 0,
+            0, 1, 1, 1, 1, 1, 1, 1, 1, 0,
+            0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+    };
+
+
+    private async Task StartGame()
     {
-        // Logic to start the game goes here
+        game.IsActive = true;
+        await LoadMap();
     }
 
     private void UpdateLobby()
@@ -79,6 +100,15 @@ Welcome to your new app.
     {
         // Logic to join the game goes here
     }
+
+    private async Task LoadMap()
+    {
+        if (gameDisplay != null)
+        {
+            await gameDisplay.LoadMap(map, mapSize);
+        }
+    }
+
 
     public class Player
     {
