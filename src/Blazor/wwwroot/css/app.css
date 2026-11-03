@@ -1,3 +1,47 @@
+.game-container {
+    position: relative;
+    padding: 20px;
+    background: #222;
+    text-align: center;
+}
+
+.game-canvas {
+    display: block;
+    image-rendering: pixelated;
+    image-rendering: crisp-edges;
+}
+
+/* Fullscreen layout */
+.game-container:fullscreen {
+    width: 100%;
+    height: 100%;
+    padding: 0;
+    box-sizing: border-box;
+    background: #222;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+    /* Canvas in fullscreen */
+    .game-container:fullscreen .game-canvas {
+        width: var(--canvas-size);
+        height: var(--canvas-size);
+        max-width: none;
+        max-height: none;
+        image-rendering: pixelated;
+    }
+
+    /* Keep fullscreen button in the top-right */
+    .game-container:fullscreen .fullscreen-button {
+        position: absolute;
+        top: 15px;
+        right: 15px;
+        z-index: 10;
+    }
+
+
+
 html, body {
     font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
 }

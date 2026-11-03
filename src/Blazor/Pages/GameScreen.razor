@@ -1,4 +1,6 @@
-﻿@page "/game-screen"
+﻿@inject IJSRuntime JS
+
+@page "/game-screen"
 
 <PageTitle>Game Screen</PageTitle>
 
@@ -38,10 +40,20 @@ Welcome to your new app.
 }
 
 
-<GameDisplay @ref="gameDisplay" />
+<div @ref="gameContainer" class="game-container">
+
+    <button class="btn btn-primary fullscreen-button"
+            @onclick="ToggleFullscreen">
+        ⛶ Fullscreen
+    </button>
+
+    <GameDisplay @ref="gameDisplay" />
+
+</div>
 
 
 @code {
+    private ElementReference gameContainer;
     private GameDisplay? gameDisplay;
     Lobby lobby = new();
     Game game = new Game();
@@ -51,19 +63,26 @@ Welcome to your new app.
 
     string message = string.Empty;
 
-    int mapSize = 10;
+    int mapSize = 16;
 
     int[] map =
         {
-            0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-            0, 1, 1, 1, 1, 1, 1, 1, 1, 0,
-            0, 1, 2, 0, 0, 0, 0, 2, 1, 0,
-            0, 1, 0, 1, 1, 1, 1, 0, 1, 0,
-            0, 1, 0, 1, 0, 0, 1, 0, 1, 0,
-            0, 1, 0, 1, 1, 1, 1, 0, 1, 0,
-            0, 1, 2, 0, 0, 0, 0, 2, 1, 0,
-            0, 1, 1, 1, 1, 1, 1, 1, 1, 0,
-            0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 5, 0,
+            0, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 1, 0,
+            0, 1, 2, 0, 0, 0, 0, 2, 1, 0, 0, 0, 0, 0, 1, 0,
+            0, 1, 0, 1, 1, 1, 1, 0, 1, 0, 0, 0, 0, 0, 1, 0,
+            0, 1, 0, 1, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 1, 0,
+            0, 1, 0, 1, 1, 1, 1, 0, 1, 0, 0, 0, 0, 0, 1, 0,
+            0, 1, 2, 0, 0, 0, 0, 2, 1, 0, 0, 0, 0, 0, 1, 0,
+            0, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 1, 0,
+            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0,
+            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 5, 0,
+            0, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 1, 0,
+            0, 1, 2, 0, 0, 0, 0, 2, 1, 0, 0, 0, 0, 0, 1, 0,
+            0, 1, 0, 1, 1, 1, 1, 0, 1, 0, 0, 0, 0, 0, 1, 0,
+            0, 1, 0, 1, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 1, 0,
+            0, 1, 0, 1, 1, 1, 1, 0, 1, 0, 0, 0, 0, 0, 1, 0,
+            0, 1, 0, 1, 1, 1, 1, 0, 1, 0, 0, 0, 0, 0, 1, 0
     };
 
 
@@ -107,6 +126,14 @@ Welcome to your new app.
         {
             await gameDisplay.LoadMap(map, mapSize);
         }
+    }
+
+    private async Task ToggleFullscreen()
+    {
+        await JS.InvokeVoidAsync(
+            "gameFullscreen.toggle",
+            gameContainer
+        );
     }
 
 
