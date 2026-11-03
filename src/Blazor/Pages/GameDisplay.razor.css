@@ -1,0 +1,6 @@
+.game-canvas {
+    width: 480px;
+    height: 432px;
+    image-rendering: pixelated;
+    image-rendering: crisp-edges;
+}
