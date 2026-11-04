@@ -173,6 +173,26 @@ PostgreSQL runs in Docker. The app talks to it through EF Core (`src/Infrastruct
    Use `127.0.0.1`, not `localhost`: the container port is published on IPv4 only, and `localhost` can resolve to IPv6 (`[::1]`), which fails with *Failed to connect to [::1]:5432*.
 5. Run the app and open `https://localhost:7033/health`. `Healthy` means the app can reach the database.
 
+### Migrations
+
+The schema is managed with EF Core migrations (`src/Infrastructure/Persistence/Migrations`). The tables are `Players`, `Rounds` and `RoundPlayers`. They hold only players and finished rounds; live game state stays in memory.
+
+Install the tool once: `dotnet tool install --global dotnet-ef`
+
+| Task | Command |
+| ---- | ------- |
+| Apply migrations to your database | `dotnet ef database update --project src/Infrastructure --startup-project src/Blazor` |
+| Create a migration after changing entities or configurations | `dotnet ef migrations add <Name> --project src/Infrastructure --startup-project src/Blazor --output-dir Persistence/Migrations` |
+| Undo the latest migration (only if not pushed) | `dotnet ef migrations remove --project src/Infrastructure --startup-project src/Blazor` |
+| Check that the model matches the migrations | `dotnet ef migrations has-pending-model-changes --project src/Infrastructure --startup-project src/Blazor` |
+| Reset your local database | `docker compose down -v`, `docker compose up -d`, then `database update` |
+
+Rules:
+- Run `database update` after pulling new migrations.
+- Never edit a migration that has been pushed. Add a new one instead.
+- One migration per change. Commit all three files: the migration, its `.Designer.cs` and `TreasureSweeperDbContextModelSnapshot.cs`.
+- On a first run, a logged `fail` for `SELECT ... FROM "__EFMigrationsHistory"` is normal: EF is checking whether the history table exists.
+
 **Useful commands**
 
 | Command | What it does |
