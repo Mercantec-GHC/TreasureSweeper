@@ -1,3 +1,5 @@
+using Domain.Boards;
+
 namespace Domain.Games;
 
 public sealed class Game(string pin)
@@ -7,6 +9,7 @@ public sealed class Game(string pin)
     private readonly Dictionary<string, string> _devices = [];
     
     public string Pin { get; } = pin;
+    public Board? Board { get; private set; }
     public GamePhase Phase { get; private set; } = GamePhase.Waiting;
     public IReadOnlyCollection<Player> Players => _players.Values;
 
@@ -40,10 +43,11 @@ public sealed class Game(string pin)
         return JoinResult.Joined(player);
     }
 
-    public GameResult Start()
+    public GameResult Start(Random? rng = null)
     {
         if (Phase != GamePhase.Waiting) return GameResult.Fail(GameError.RoundNotWaiting);
         if (_players.Count == 0) return GameResult.Fail(GameError.NoPlayers);
+        Board = BoardGenerator.Generate(_players.Count, rng ?? Random.Shared);
         Phase = GamePhase.Playing;
         return GameResult.Ok;
     }
@@ -58,6 +62,7 @@ public sealed class Game(string pin)
     public GameResult Reset()
     {
         if (Phase == GamePhase.Playing) return GameResult.Fail(GameError.RoundInProgress);
+        Board = null;
         Phase = GamePhase.Waiting;
         return GameResult.Ok;
     }
