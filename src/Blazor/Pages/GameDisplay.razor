@@ -1,0 +1,24 @@
+﻿@inject IJSRuntime JS
+
+<br>
+<canvas @ref="gameCanvas"
+        width="@(mapSize * 32)"
+        height="@(mapSize * 32)"
+        class="game-canvas">
+</canvas>
+
+@code {
+    private ElementReference gameCanvas;
+    int mapSize = 16;
+
+    public async Task LoadMap(int[] map, int size)
+    {
+        mapSize = size;
+        await JS.InvokeVoidAsync(
+            "gameRenderer.drawMap",
+            gameCanvas,
+            map,
+            size
+        );
+    }
+}
