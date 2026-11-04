@@ -2,6 +2,7 @@ using API.Endpoints;
 using Blazor;
 using Domain.Games;
 using Infrastructure;
+using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -15,6 +16,14 @@ var app = builder.Build();
 
 if (!app.Environment.IsDevelopment())
 {
+    // The container starts against an empty Postgres volume. Apply migrations once
+    // the process is up so /health and persisted rounds work without a manual step.
+    await using (var scope = app.Services.CreateAsyncScope())
+    {
+        var db = scope.ServiceProvider.GetRequiredService<TreasureSweeperDbContext>();
+        await db.Database.MigrateAsync();
+    }
+
     app.UseExceptionHandler("/Error", createScopeForErrors: true);
     app.UseHsts();
 }
