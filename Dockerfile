@@ -8,7 +8,7 @@ COPY src/Shared/Shared.csproj src/Shared/
 RUN dotnet restore src/Blazor/Blazor.csproj
 
 COPY src/ src/
-RUN dotnet publish src/Blazor/Blazor.csproj -c Release -o /app/publish --no-restore /p:UseAppHost=false
+RUN dotnet publish src/Blazor/Blazor.csproj -c Release -o /app/publish /p:UseAppHost=false
 
 FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS runtime
 WORKDIR /app
