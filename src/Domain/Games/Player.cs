@@ -1,4 +1,4 @@
-namespace Domain.Games;
+ namespace Domain.Games;
 
 public sealed record Player(
     string Id,
