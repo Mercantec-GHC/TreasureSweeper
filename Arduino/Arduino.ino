@@ -105,7 +105,7 @@ bool requestJson(const char *endpoint, JsonDocument *request, JsonDocument &repl
   ControllerResponse response;
   bool complete = false;
   if (!reused && !transport.connect(SERVER_HOST, SERVER_PORT)){
-    lastError = "HTTPS: tjek net/certifikat"; // fejl her omkring
+    lastError = "HTTPS: tjek net/certifikat";
   }else{
     String payload;
     if (request) serializeJson(*request, payload);
@@ -244,10 +244,11 @@ void handleControls(uint8_t down, uint8_t pressed, uint8_t released){
    if (repeatKey(key) && action != nullptr) {
     sendAction(action, direction);
   }
-Serial.println("action:");
-Serial.println(action ? action : "none");
-Serial.println("direction:");
-Serial.println(direction ? direction : "none");
+  // testing to see if direction & action gets sendt
+// Serial.println("action:");
+// Serial.println(action ? action : "none");
+// Serial.println("direction:");
+// Serial.println(direction ? direction : "none");
 }
 
 
