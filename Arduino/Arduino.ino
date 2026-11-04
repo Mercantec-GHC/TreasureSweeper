@@ -3,6 +3,7 @@
 #include <WiFiNINA.h>
 #include "config.h"
 #include <ArduinoJson.h>
+#include <WiFiClient.h>
 
 MKRIoTCarrier carrier;
 uint32_t lastRepeat = 0;
@@ -84,6 +85,7 @@ void identity(JsonDocument &request) {
   request["deviceId"] = deviceId;
   if (playerId.length()) request["playerId"] = playerId;
   if (GAME_PIN[0]) request["pin"] = GAME_PIN;
+  Serial.println(playerId);
 }
 
 void forgetSession(){
@@ -103,11 +105,14 @@ bool requestJson(const char *endpoint, JsonDocument *request, JsonDocument &repl
   ControllerResponse response;
   bool complete = false;
   if (!reused && !transport.connect(SERVER_HOST, SERVER_PORT)){
-    lastError = "HTTPS: tjek net/certifikat";
+    lastError = "HTTPS: tjek net/certifikat"; // fejl her omkring
   }else{
     String payload;
     if (request) serializeJson(*request, payload);
     String packet = request ? "POST " : "GET ";
+    Serial.println(packet);
+    Serial.println(endpoint);
+    Serial.println(payload);
   packet += String(GAME_PATH) + endpoint + " HTTP/1.1\r\nHost: " + SERVER_HOST;
   packet += "\r\nAccept: application/json\r\nAccept-Encoding: identity";
   packet += "\r\nConnection: keep-alive\r\n";
@@ -226,13 +231,13 @@ bool sendAction(const char *action, const char *direction = nullptr){
 // 03 = rotate right
 // 04 = dig
 void handleControls(uint8_t down, uint8_t pressed, uint8_t released){
-  if (released & (k0 | k1 | k2 | k3)) repeatedKey = -1;
+  if (released & (k1 | k2 | k3)) repeatedKey = -1;
   if (pressed & k4) {sendAction("dig"); return; }
   if (pressed & k0) {sendAction("scan"); return; }
   int key = -1;
   const char *direction = nullptr;
   const char *action = nullptr;
-  if ((down & (k0 | k2)) == k2) {key = 2; direction = "UP"; action = "move";}
+  if ((down & (k2)) == k2) {key = 2; direction = "UP"; action = "move";}
   // else if ((down & (k0 | k2)) == k0) {key = 0; direction = "DOWN";}
   else if ((down & (k1 | k3)) == k1) {key = 1; direction = "LEFT"; action = "rotate";}
   else if ((down & (k1 | k3)) == k3) {key = 3; direction = "RIGHT"; action = "rotate";}
