@@ -1,12 +1,9 @@
 ﻿@inject IJSRuntime JS
+@using Domain.Games;
 
 @page "/game-screen"
 
 <PageTitle>Game Screen</PageTitle>
-
-<h1>Hello, world!</h1>
-
-Welcome to your new app.
 
 <div>
     <button class="btn btn-primary" @onclick="HostGame">Host Game</button>
@@ -21,7 +18,9 @@ Welcome to your new app.
         <ul>
             @foreach (var player in lobby.Players)
             {
-                <li>@player.Name</li>
+                <li style="color: @player.Color">
+                    @player.Name
+                </li>
             }
         </ul>
     </div>
@@ -72,12 +71,12 @@ Welcome to your new app.
             0, 1, 2, 0, 0, 0, 0, 2, 1, 0, 0, 0, 0, 0, 1, 0,
             0, 1, 0, 1, 1, 1, 1, 0, 1, 0, 0, 0, 0, 0, 1, 0,
             0, 1, 0, 1, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 1, 0,
-            0, 1, 0, 1, 1, 1, 1, 0, 1, 0, 0, 0, 0, 0, 1, 0,
-            0, 1, 2, 0, 0, 0, 0, 2, 1, 0, 0, 0, 0, 0, 1, 0,
+            0, 1, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+            0, 1, 2, 0, 0, 0, 0, 2, 1, 4, 0, 0, 0, 0, 1, 0,
             0, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 1, 0,
             0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0,
-            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 5, 0,
-            0, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 1, 0,
+            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0,
+            0, 1, 1, 1, 1, 1, 1, 0, 1, 0, 0, 0, 0, 0, 1, 0,
             0, 1, 2, 0, 0, 0, 0, 2, 1, 0, 0, 0, 0, 0, 1, 0,
             0, 1, 0, 1, 1, 1, 1, 0, 1, 0, 0, 0, 0, 0, 1, 0,
             0, 1, 0, 1, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 1, 0,
@@ -101,13 +100,42 @@ Welcome to your new app.
     {
         if (lobby == null) return;
 
-        if (lobby.Players.Contains(player))
+        if (lobby.Players.Any(p => p.Id == player.Id))
         {
             message = "You are already in the lobby.";
             return;
         }
+
+        // Find colors already assigned
+        var usedColors = lobby.Players
+            .Select(p => p.Color)
+            .ToHashSet();
+
+        // Find the next available color
+        string assignedColor = playerColors
+            .FirstOrDefault(c => !usedColors.Contains(c))
+            ?? GenerateRandomColor(usedColors);
+
+        // Assign color to player
+        player.Color = assignedColor;
+
+        // Add player to lobby
         lobby.Players.Add(player);
-        message = "You have joined the lobby.";
+    }
+
+    private string GenerateRandomColor(HashSet<string> usedColors)
+    {
+        Random random = new Random();
+
+        string color;
+
+        do
+        {
+            color = $"#{random.Next(0x1000000):X6}";
+        }
+        while (usedColors.Contains(color));
+
+        return color;
     }
 
     void HostGame()
@@ -136,12 +164,28 @@ Welcome to your new app.
         );
     }
 
+    private readonly List<string> playerColors = new()
+    {
+        "#FF0000", // Red
+        "#0000FF", // Blue
+        "#00CC00", // Green
+        "#FFFF00", // Yellow
+        "#FF00FF", // Magenta
+        "#00FFFF", // Cyan
+        "#FFA500", // Orange
+        "#800080", // Purple
+        "#FF69B4", // Pink
+        "#A52A2A"  // Brown
+    };
+
 
     public class Player
     {
         public int Id { get; set; }
         public string Name { get; set; }
         public int Score { get; set; }
+        public string Color { get; set; } = "#000000";
+        public int[] Position { get; set; } = new int[2] { 0, 0 };
 
         public Player(int id, string name)
         {
