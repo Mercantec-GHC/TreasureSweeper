@@ -23,6 +23,7 @@ GET {{API_HostAddress}}/api/games/0000
 POST {{API_HostAddress}}/api/games/{{pin}}/start
 
 ### Controller joins -> 200, number 1
+# @name join
 POST {{API_HostAddress}}/api/controller/join
 Content-Type: application/json
 
@@ -46,8 +47,80 @@ Content-Type: application/json
 
 { "pin": "0000", "deviceId": "OPLA_AABBCCDDEEFF" }
 
+### Heartbeat -> 200 { ok:true }
+POST {{API_HostAddress}}/api/controller/heartbeat
+Content-Type: application/json
+
+{ "pin": "{{pin}}", "playerId": "{{join.response.body.$.playerId}}", "deviceId": "OPLA_AABBCCDDEEFF" }
+
+### Heartbeat wrong device -> 403
+POST {{API_HostAddress}}/api/controller/heartbeat
+Content-Type: application/json
+
+{ "pin": "{{pin}}", "playerId": "{{join.response.body.$.playerId}}", "deviceId": "OPLA_WRONG0000000" }
+
+### Heartbeat unknown player -> 403
+POST {{API_HostAddress}}/api/controller/heartbeat
+Content-Type: application/json
+
+{ "pin": "{{pin}}", "playerId": "nope", "deviceId": "OPLA_AABBCCDDEEFF" }
+
+### Heartbeat unknown PIN -> 404
+POST {{API_HostAddress}}/api/controller/heartbeat
+Content-Type: application/json
+
+{ "pin": "0000", "playerId": "{{join.response.body.$.playerId}}", "deviceId": "OPLA_AABBCCDDEEFF" }
+
+### Action before round -> 200 { ok:false, message:"No round is running" }
+POST {{API_HostAddress}}/api/controller/action
+Content-Type: application/json
+
+{ "pin": "{{pin}}", "playerId": "{{join.response.body.$.playerId}}", "deviceId": "OPLA_AABBCCDDEEFF", "action": "dig" }
+
 ### Start -> 200, phase Playing
 POST {{API_HostAddress}}/api/games/{{pin}}/start
+
+### Move forward -> 200 { ok:true }
+POST {{API_HostAddress}}/api/controller/action
+Content-Type: application/json
+
+{ "pin": "{{pin}}", "playerId": "{{join.response.body.$.playerId}}", "deviceId": "OPLA_AABBCCDDEEFF", "action": "move" }
+
+### Rotate left -> 200 { ok:true }
+POST {{API_HostAddress}}/api/controller/action
+Content-Type: application/json
+
+{ "pin": "{{pin}}", "playerId": "{{join.response.body.$.playerId}}", "deviceId": "OPLA_AABBCCDDEEFF", "action": "rotate", "params": { "direction": "LEFT" } }
+
+### Scan -> 200 { ok:true }
+POST {{API_HostAddress}}/api/controller/action
+Content-Type: application/json
+
+{ "pin": "{{pin}}", "playerId": "{{join.response.body.$.playerId}}", "deviceId": "OPLA_AABBCCDDEEFF", "action": "scan" }
+
+### Dig -> 200 { ok:true }
+POST {{API_HostAddress}}/api/controller/action
+Content-Type: application/json
+
+{ "pin": "{{pin}}", "playerId": "{{join.response.body.$.playerId}}", "deviceId": "OPLA_AABBCCDDEEFF", "action": "dig" }
+
+### Rotate without direction -> 400
+POST {{API_HostAddress}}/api/controller/action
+Content-Type: application/json
+
+{ "pin": "{{pin}}", "playerId": "{{join.response.body.$.playerId}}", "deviceId": "OPLA_AABBCCDDEEFF", "action": "rotate" }
+
+### Unknown action -> 400
+POST {{API_HostAddress}}/api/controller/action
+Content-Type: application/json
+
+{ "pin": "{{pin}}", "playerId": "{{join.response.body.$.playerId}}", "deviceId": "OPLA_AABBCCDDEEFF", "action": "fly" }
+
+### Action wrong device -> 403
+POST {{API_HostAddress}}/api/controller/action
+Content-Type: application/json
+
+{ "pin": "{{pin}}", "playerId": "{{join.response.body.$.playerId}}", "deviceId": "OPLA_WRONG0000000", "action": "scan" }
 
 ### New controller mid-round -> 409 { ok:false, error:"Round in progress" }
 POST {{API_HostAddress}}/api/controller/join
