@@ -64,6 +64,7 @@ Thumbs.db
 appsettings.*.local.json
 *.local.json
 secrets.json
+.env
 
 # MSBuild / misc
 *.binlog

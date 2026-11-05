@@ -1,0 +1,1 @@
+dotnet run --project src/Blazor --launch-profile https

@@ -1,0 +1,216 @@
+﻿@inject IJSRuntime JS
+@using Domain.Games;
+
+@page "/game-screen"
+
+<PageTitle>Game Screen</PageTitle>
+
+<div>
+    <button class="btn btn-primary" @onclick="HostGame">Host Game</button>
+    <button class="btn btn-primary" @onclick="JoinGame">Join Game</button>
+</div>
+
+@if (lobby != null)
+{
+    <div>
+        <h2>Lobby ID: @lobby.LobbyId</h2>
+        <p>Players in Lobby:</p>
+        <ul>
+            @foreach (var player in lobby.Players)
+            {
+                <li style="color: @player.Color">
+                    @player.Name
+                </li>
+            }
+        </ul>
+    </div>
+    <InputText @bind-Value="player1.Name" placeholder="Enter your name" />
+    <button class="btn btn-primary" @onclick="() => JoinPlayer(player1)">Join Lobby</button>
+
+    <button class="btn btn-primary" @onclick="StartGame">Start Game</button>
+}
+
+
+@if (!string.IsNullOrEmpty(message))
+{
+    <div class="alert alert-info" role="alert">
+        @message
+    </div>
+}
+
+
+<div @ref="gameContainer" class="game-container">
+
+    <button class="btn btn-primary fullscreen-button"
+            @onclick="ToggleFullscreen">
+        ⛶ Fullscreen
+    </button>
+
+    <GameDisplay @ref="gameDisplay" />
+
+</div>
+
+
+@code {
+    private ElementReference gameContainer;
+    private GameDisplay? gameDisplay;
+    Lobby lobby = new();
+    Game game = new Game();
+    Player[] players = new Player[0];
+
+    Player player1 = new Player(1, "Player 1");
+
+    string message = string.Empty;
+
+    int mapSize = 16;
+
+    int[] map =
+        {
+            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 5, 0,
+            0, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 1, 0,
+            0, 1, 2, 0, 0, 0, 0, 2, 1, 0, 0, 0, 0, 0, 1, 0,
+            0, 1, 0, 1, 1, 1, 1, 0, 1, 0, 0, 0, 0, 0, 1, 0,
+            0, 1, 0, 1, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 1, 0,
+            0, 1, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+            0, 1, 2, 0, 0, 0, 0, 2, 1, 4, 0, 0, 0, 0, 1, 0,
+            0, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 1, 0,
+            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0,
+            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0,
+            0, 1, 1, 1, 1, 1, 1, 0, 1, 0, 0, 0, 0, 0, 1, 0,
+            0, 1, 2, 0, 0, 0, 0, 2, 1, 0, 0, 0, 0, 0, 1, 0,
+            0, 1, 0, 1, 1, 1, 1, 0, 1, 0, 0, 0, 0, 0, 1, 0,
+            0, 1, 0, 1, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 1, 0,
+            0, 1, 0, 1, 1, 1, 1, 0, 1, 0, 0, 0, 0, 0, 1, 0,
+            0, 1, 0, 1, 1, 1, 1, 0, 1, 0, 0, 0, 0, 0, 1, 0
+    };
+
+
+    private async Task StartGame()
+    {
+        game.IsActive = true;
+        await LoadMap();
+    }
+
+    private void UpdateLobby()
+    {
+        // Logic to update the lobby goes here
+    }
+
+    private void JoinPlayer(Player player)
+    {
+        if (lobby == null) return;
+
+        if (lobby.Players.Any(p => p.Id == player.Id))
+        {
+            message = "You are already in the lobby.";
+            return;
+        }
+
+        // Find colors already assigned
+        var usedColors = lobby.Players
+            .Select(p => p.Color)
+            .ToHashSet();
+
+        // Find the next available color
+        string assignedColor = playerColors
+            .FirstOrDefault(c => !usedColors.Contains(c))
+            ?? GenerateRandomColor(usedColors);
+
+        // Assign color to player
+        player.Color = assignedColor;
+
+        // Add player to lobby
+        lobby.Players.Add(player);
+    }
+
+    private string GenerateRandomColor(HashSet<string> usedColors)
+    {
+        Random random = new Random();
+
+        string color;
+
+        do
+        {
+            color = $"#{random.Next(0x1000000):X6}";
+        }
+        while (usedColors.Contains(color));
+
+        return color;
+    }
+
+    void HostGame()
+    {
+        lobby = new Lobby();
+    }
+
+    void JoinGame()
+    {
+        // Logic to join the game goes here
+    }
+
+    private async Task LoadMap()
+    {
+        if (gameDisplay != null)
+        {
+            await gameDisplay.LoadMap(map, mapSize);
+        }
+    }
+
+    private async Task ToggleFullscreen()
+    {
+        await JS.InvokeVoidAsync(
+            "gameFullscreen.toggle",
+            gameContainer
+        );
+    }
+
+    private readonly List<string> playerColors = new()
+    {
+        "#FF0000", // Red
+        "#0000FF", // Blue
+        "#00CC00", // Green
+        "#FFFF00", // Yellow
+        "#FF00FF", // Magenta
+        "#00FFFF", // Cyan
+        "#FFA500", // Orange
+        "#800080", // Purple
+        "#FF69B4", // Pink
+        "#A52A2A"  // Brown
+    };
+
+
+    public class Player
+    {
+        public int Id { get; set; }
+        public string Name { get; set; }
+        public int Score { get; set; }
+        public string Color { get; set; } = "#000000";
+        public int[] Position { get; set; } = new int[2] { 0, 0 };
+
+        public Player(int id, string name)
+        {
+            Id = id;
+            Name = name;
+            Score = 0;
+        }
+    }
+
+    public class Game
+    {
+        public List<Player> Players { get; set; } = new List<Player>();
+        public bool IsActive { get; set; }
+    }
+
+    public class Lobby
+    {
+        public int LobbyId { get; set; }
+        public List<Player> Players { get; set; } = new List<Player>();
+        public bool IsOpen { get; set; }
+
+        public Lobby()
+        {
+            LobbyId = new Random().Next(1000, 9999); // Generate a random lobby ID
+            IsOpen = true;
+        }
+    }
+}
