@@ -1,5 +1,4 @@
 ﻿@inject IJSRuntime JS
-@using Domain.Games;
 @using Domain.Boards;
 
 <br>
@@ -15,7 +14,7 @@
     int mapSize = 0;
     int tileSize = 32;
 
-    public async Task LoadMap(int[] map, int size)
+    public async Task LoadMap(Board map)
     {
         byte[][] tiles = new byte[map.Size][];
 
@@ -43,8 +42,7 @@
         await JS.InvokeVoidAsync(
             "gameRenderer.drawMap",
             gameCanvas,
-            map,
-            size
+            map
         );
     }
 }
