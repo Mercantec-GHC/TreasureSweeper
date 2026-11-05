@@ -88,9 +88,6 @@
             0, 1, 0, 1, 1, 1, 1, 0, 1, 0, 0, 0, 0, 0, 1, 0
     };
 
-    bool gameIsMade = false;
-
-
     private async Task StartGame()
     {
         if (game == null)
@@ -121,7 +118,7 @@
         }
         else
         {
-            message = result.Error.ToString();
+            message = result.Error.ToString()!;
         }
     }
 
