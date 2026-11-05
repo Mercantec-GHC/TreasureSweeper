@@ -2,22 +2,13 @@
 @pin = 1234
 
 ### Create game with fixed PIN (matches GAME_PIN in config.h) -> 201
-POST {{API_HostAddress}}/api/games
-Content-Type: application/json
-
-{ "pin": "{{pin}}" }
+POST {{API_HostAddress}}/api/games?pin={{pin}}
 
 ### Same PIN again -> 409
-POST {{API_HostAddress}}/api/games
-Content-Type: application/json
-
-{ "pin": "{{pin}}" }
+POST {{API_HostAddress}}/api/games?pin={{pin}}
 
 ### Invalid PIN -> 400
-POST {{API_HostAddress}}/api/games
-Content-Type: application/json
-
-{ "pin": "12ab" }
+POST {{API_HostAddress}}/api/games?pin=12ab
 
 ### Random PIN -> 201
 POST {{API_HostAddress}}/api/games
