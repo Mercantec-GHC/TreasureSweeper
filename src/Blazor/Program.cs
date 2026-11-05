@@ -40,6 +40,7 @@ app.MapStaticAssets();
 app.MapRazorComponents<App>().AddInteractiveServerRenderMode();
 app.MapGameEndpoints();
 app.MapControllerEndpoints();
+app.MapLeaderboardEndpoints();
 app.MapHealthChecks("/health");
 
 app.Run();
