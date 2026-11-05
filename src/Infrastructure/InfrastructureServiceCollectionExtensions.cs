@@ -1,3 +1,5 @@
+using Infrastructure.Persistence;
+using Infrastructure.Persistence.Interfaces;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -36,6 +38,7 @@ public static class InfrastructureServiceCollectionExtensions
 			return true;
 		});
 
+		services.AddScoped<IRoundResultStore, RoundResultStore>();
 		return services;
     }
 }
