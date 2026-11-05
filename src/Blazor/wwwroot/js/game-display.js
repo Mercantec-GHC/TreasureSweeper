@@ -3,7 +3,7 @@
     previousMap: null,
     images: {},
 
-    drawMap: function (canvas, map, mapSize) {
+    drawMap: function (canvas, map, mapSize, players) {
 
         const ctx = canvas.getContext("2d");
         const tileSize = 32;
