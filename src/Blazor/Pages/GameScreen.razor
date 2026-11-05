@@ -93,6 +93,19 @@
 
     private async Task StartGame()
     {
+        if (game == null)
+        {
+            message = "No game to start.";
+            return;
+        }
+
+        GameResult result = game.Start();
+        if (!result.Success)
+        {
+            message = $"Error starting game: {result.Error}";
+            return;
+        }
+
         await LoadMap();
     }
 
