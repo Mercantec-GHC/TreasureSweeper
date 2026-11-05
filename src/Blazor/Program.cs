@@ -35,12 +35,18 @@ else
 	app.MapOpenApi();
 	app.UseSwaggerUI(o => o.SwaggerEndpoint("/openapi/v1.json", "TreasureSweeper API"));
 
-	// #38 — dev-only sample data so the UI and API have something to show.
-	await using var scope = app.Services.CreateAsyncScope();
-	var store = scope.ServiceProvider.GetRequiredService<IRoundResultStore>();
-	var db = scope.ServiceProvider.GetRequiredService<TreasureSweeperDbContext>();
-	try { await DatabaseSeeder.SeedAsync(store, db); }
-	catch (Exception ex) { app.Logger.LogWarning(ex, "Skipped dev seeding (is the database migrated and running?)"); }
+	// #38 - dev-only sample data so the UI and API have something to show.
+	try
+	{
+		await using var scope = app.Services.CreateAsyncScope();
+		var store = scope.ServiceProvider.GetRequiredService<IRoundResultStore>();
+		var db = scope.ServiceProvider.GetRequiredService<TreasureSweeperDbContext>();
+		await DatabaseSeeder.SeedAsync(store, db);
+	}
+	catch (Exception ex)
+	{
+		app.Logger.LogWarning(ex, "Skipped dev seeding (is the database migrated and running?)");
+	}
 }
 
 // No UseHttpsRedirection: the Opla controllers call plain http on the LAN and cannot follow a redirect.
