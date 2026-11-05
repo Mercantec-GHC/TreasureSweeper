@@ -314,6 +314,31 @@ void updateLeds() {
   }
 }
 
+
+void gameWin (){
+
+}
+
+void gameConnect(){
+
+}
+
+void scannedNothing(){
+
+}
+
+void frozen(){
+
+}
+
+void scannedTreasure(){
+
+}
+
+void scannedBomb(){
+
+}
+
 // void updateLeds(unsigned long now ){
 //   carrier.leds.clear();
 //   carrier.leds.setPixelColor(0, 80, 50, 0);
