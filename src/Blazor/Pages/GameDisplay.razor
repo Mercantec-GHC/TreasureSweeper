@@ -1,4 +1,5 @@
 ﻿@inject IJSRuntime JS
+@using Domain.Games;
 
 <br>
 <canvas @ref="gameCanvas"
@@ -11,14 +12,15 @@
     private ElementReference gameCanvas;
     int mapSize = 16;
 
-    public async Task LoadMap(int[] map, int size)
+    public async Task LoadMap(int[] map, int size, IEnumerable<Player> players)
     {
         mapSize = size;
         await JS.InvokeVoidAsync(
             "gameRenderer.drawMap",
             gameCanvas,
             map,
-            size
+            size,
+            players
         );
     }
 }
