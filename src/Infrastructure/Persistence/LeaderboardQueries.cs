@@ -35,4 +35,32 @@ public sealed class LeaderboardQueries(TreasureSweeperDbContext db) : ILeaderboa
 					.ToList()))
 			.FirstOrDefaultAsync(ct);
 	}
+	public async Task<IReadOnlyList<PlayerStatResponse>> GetMostTreasuresAsync(
+	int limit = 10, CancellationToken ct = default)
+	{
+		limit = Math.Clamp(limit, 1, 100);
+		var rows = await db.RoundPlayers
+			.AsNoTracking()
+			.GroupBy(rp => rp.Player.Name)
+			.Select(g => new { Name = g.Key, Total = g.Sum(x => x.TreasuresFound) })
+			.OrderByDescending(x => x.Total)
+			.Take(limit)
+			.ToListAsync(ct);
+		return rows.Select(x => new PlayerStatResponse(x.Name, x.Total)).ToList();
+	}
+
+	public async Task<IReadOnlyList<PlayerStatResponse>> GetFewestStepsToTreasureAsync(
+		int limit = 10, CancellationToken ct = default)
+	{
+		limit = Math.Clamp(limit, 1, 100);
+		var rows = await db.RoundPlayers
+			.AsNoTracking()
+			.Where(rp => rp.FewestStepsToTreasure != null)
+			.GroupBy(rp => rp.Player.Name)
+			.Select(g => new { Name = g.Key, Best = g.Min(x => x.FewestStepsToTreasure) })
+			.OrderBy(x => x.Best)
+			.Take(limit)
+			.ToListAsync(ct);
+		return rows.Select(x => new PlayerStatResponse(x.Name, x.Best ?? 0)).ToList();
+	}
 }

@@ -18,6 +18,13 @@ internal static class LeaderboardEndpoints
 			.WithName("GetRoundResult")
 			.WithSummary("A single finished round's result");
 
+		group.MapGet("/most-treasures", async (ILeaderboardQueries q, int limit = 10, CancellationToken ct = default)
+			=> TypedResults.Ok(await q.GetMostTreasuresAsync(limit, ct)))
+			.WithName("GetMostTreasures").WithSummary("Most treasures found (all time)");
+
+		group.MapGet("/fewest-steps", async (ILeaderboardQueries q, int limit = 10, CancellationToken ct = default)
+			=> TypedResults.Ok(await q.GetFewestStepsToTreasureAsync(limit, ct)))
+			.WithName("GetFewestSteps").WithSummary("Fewest steps to reach a treasure (all time)");
 		return app;
 	}
 
