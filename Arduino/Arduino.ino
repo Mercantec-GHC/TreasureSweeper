@@ -244,11 +244,10 @@ void handleControls(uint8_t down, uint8_t pressed, uint8_t released){
    if (repeatKey(key) && action != nullptr) {
     sendAction(action, direction);
   }
-  // testing to see if direction & action gets sendt
-// Serial.println("action:");
-// Serial.println(action ? action : "none");
-// Serial.println("direction:");
-// Serial.println(direction ? direction : "none");
+Serial.println("action:");
+Serial.println(action ? action : "none");
+Serial.println("direction:");
+Serial.println(direction ? direction : "none");
 }
 
 
