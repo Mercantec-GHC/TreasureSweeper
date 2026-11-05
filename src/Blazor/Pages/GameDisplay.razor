@@ -15,7 +15,7 @@
     int mapSize = 0;
     int tileSize = 32;
 
-    public async Task LoadMap(Board map, IEnumerable<Player> players)
+    public async Task LoadMap(int[] map, int size)
     {
         byte[][] tiles = new byte[map.Size][];
 
@@ -43,8 +43,8 @@
         await JS.InvokeVoidAsync(
             "gameRenderer.drawMap",
             gameCanvas,
-            tiles,
-            players
+            map,
+            size
         );
     }
 }

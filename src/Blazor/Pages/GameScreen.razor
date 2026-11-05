@@ -158,6 +158,7 @@
     {
         if (gameDisplay == null || game == null || !game.Players.Any()) return;
         
+
         await gameDisplay.LoadMap(game.Board, game.Players);
         
     }
