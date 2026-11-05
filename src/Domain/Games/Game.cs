@@ -43,12 +43,27 @@ public sealed class Game(string pin)
         return JoinResult.Joined(player);
     }
 
+    public Player? FindController(string? playerId, string? deviceId)
+    {
+        if (string.IsNullOrWhiteSpace(playerId) || !_players.TryGetValue(playerId, out var player))
+            return null;
+
+        return player.DeviceId is null || player.DeviceId == deviceId ? player : null;
+    }
+
     public GameResult Start(Random? rng = null)
     {
         if (Phase != GamePhase.Waiting) return GameResult.Fail(GameError.RoundNotWaiting);
         if (_players.Count == 0) return GameResult.Fail(GameError.NoPlayers);
         Board = BoardGenerator.Generate(_players.Count, rng ?? Random.Shared);
         Phase = GamePhase.Playing;
+        return GameResult.Ok;
+    }
+
+    public GameResult Act(Player player, PlayerAction action)
+    {
+        if (Phase != GamePhase.Playing) return GameResult.Fail(GameError.RoundNotPlaying);
+        // Move/rotate/scan/dig rules come with the gameplay issues.
         return GameResult.Ok;
     }
 
