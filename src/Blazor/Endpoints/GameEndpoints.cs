@@ -14,7 +14,7 @@ internal static class GameEndpoints
         group.MapPost("/", CreateGame)
             .WithName("CreateGame")
             .WithSummary("Create a game")
-            .WithDescription("Allocates a random 4-digit PIN, or uses the requested one.");
+            .WithDescription("Allocates a random 4-digit PIN, or uses the one given in the optional `pin` query parameter.");
 
         group.MapGet("/{pin}", GetGame)
             .WithName("GetGame")
@@ -36,10 +36,10 @@ internal static class GameEndpoints
     }
 
     private static Results<Created<GameResponse>, ProblemHttpResult> CreateGame(
-        CreateGameRequest? request, GameRegistry registry
+        string? pin, GameRegistry registry
     )
     {
-        var result = registry.Create(request?.Pin);
+        var result = registry.Create(pin);
         if (!result.Success)
         {
             var (status, message) = result.Error!.Value.ToHttp();
