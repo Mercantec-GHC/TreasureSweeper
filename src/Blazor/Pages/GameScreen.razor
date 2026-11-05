@@ -157,7 +157,7 @@
 
     private async Task LoadMap()
     {
-        if (gameDisplay == null || game == null || !game.Players.Any()) return;
+        if (gameDisplay == null || game == null || !game.Players.Any() || game.Board == null) return;
         
         await gameDisplay.LoadMap(game.Board, game.Players);
         
