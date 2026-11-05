@@ -100,11 +100,16 @@
     {
         if (game == null || playerJoined) return;
 
-
-
-        game.Join(playerName, null);
-        player = game.Players.FirstOrDefault(p => p.Name == playerName);
-        playerJoined = true;
+        var result = game.Join(playerName, null);
+        if (result.Success) 
+        { 
+            player = result.Player;
+            playerJoined = true; 
+        }
+        else
+        {
+            message = result.Error.ToString();
+        }
     }
 
     private string GenerateRandomColor(HashSet<string> usedColors)
