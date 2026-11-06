@@ -14,4 +14,11 @@ public readonly record struct Position(int X, int Y)
         Direction.Right   => this with { X = X + 1 },
         _ => throw new ArgumentOutOfRangeException(nameof(d), d, null),
     };
+
+    public Position Relative(Direction facing, int forward, int right)
+    {
+        var f = default(Position).Step(facing);
+        var r = default(Position).Step(facing.TurnRight());
+        return new(X + f.X * forward + r.X * right, Y + f.Y * forward + r.Y * right);
+    }
 }
