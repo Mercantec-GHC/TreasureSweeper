@@ -1,13 +1,14 @@
 namespace Domain.Boards;
 
 
-// bit 7     (0b1000_0000): tile has been discovered
+// bit 7     (0b1000_0000): tile has been discovered (set by scan)
 // bits 5-6  (0b0110_0000): hidden content: 1 = Treasure, 2 = FreezeMine, 3 = PointMine
-// bits 0-3  (0b0000_1111): number of nearby mines (0-8)
-// bit 4     (0b0001_0000): indicates a hole
+// bits 0-3  (0b0000_1111): number of nearby mines (0-8), only on discovered tiles with no content
+// Hole is a special value (1001_0000); check IsHole() before reading the other bits.
 
 public enum TileContent { 
     Empty                = 0b0000_0000, // 0
+    Outside              = 0b0001_0000, // 16
     Hole                 = 0b1001_0000, // 144
     MineClose0           = 0b1000_0000, // 128
     MineClose1           = 0b1000_0001, // 129

@@ -1,6 +1,7 @@
 using API.Mapping;
 using Domain.Games;
 using Microsoft.AspNetCore.Http.HttpResults;
+using Microsoft.AspNetCore.Mvc;
 using Shared.Controller;
 using System.Diagnostics.CodeAnalysis;
 
@@ -85,9 +86,12 @@ internal static class ControllerEndpoints
             return Reply(StatusCodes.Status400BadRequest, ControllerJoinResponse.Fail("Unknown action or direction"));
 
         var result = game.Act(player, action);
-        return result.Success
-            ? Reply(StatusCodes.Status200OK, ControllerJoinResponse.Success())
-            : Reply(StatusCodes.Status200OK, ControllerJoinResponse.Rejected(result.Error!.Value.ToHttp().Message));
+        if (!result.Success)
+            return Reply(StatusCodes.Status200OK, ControllerJoinResponse.Rejected(result.Error!.Value.ToHttp().Message));
+
+        return Reply(StatusCodes.Status200OK, result.Scan is { } scan 
+            ? ControllerJoinResponse.Scanned(scan.OnMine, scan.AdjacentMines)
+            : ControllerJoinResponse.Success());
     }
 
     private static bool TryResolve(
