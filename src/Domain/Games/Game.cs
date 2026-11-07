@@ -7,6 +7,7 @@ public sealed class Game(string pin, TimeProvider? time = null)
     private readonly Lock _gate = new();
     public const int MAX_PLAYERS = 8;
     public static readonly TimeSpan MOVE_COOLDOWN = TimeSpan.FromMilliseconds(200);
+    public static readonly TimeSpan SCAN_COOLDOWN = TimeSpan.FromSeconds(1);
 
     private readonly TimeProvider _time = time ?? TimeProvider.System;
     private readonly Dictionary<string, Player> _players = [];
@@ -106,6 +107,7 @@ public sealed class Game(string pin, TimeProvider? time = null)
         {
             ActionKind.Move => Move(state, now),
             ActionKind.Rotate => Rotate(state, action.Turn!.Value),
+            ActionKind.Scan => Scan(state, now),
             _ => GameResult.Ok,
         };
     }
@@ -116,7 +118,7 @@ public sealed class Game(string pin, TimeProvider? time = null)
         if (now < state.NextMoveAt) return GameResult.Fail(GameError.OnCooldown);
 
         var target = state.Position.Step(state.Facing);
-        if (!Board!.Contains(target) || Board.IsHole(target)) return GameResult.Fail(GameError.Blocked);
+        if (!Board!.Contains(target) || Board[target].IsHole()) return GameResult.Fail(GameError.Blocked);
 
         state.Position = target;
         state.NextMoveAt = now + MOVE_COOLDOWN;
@@ -127,6 +129,20 @@ public sealed class Game(string pin, TimeProvider? time = null)
     {
         state.Facing = state.Facing.Turn(turn);
         return GameResult.Ok;
+    }
+
+    private GameResult Scan(PlayerState state, DateTimeOffset now)
+    {
+        if (now < state.NextScanAt) return GameResult.Fail(GameError.OnCooldown);
+
+        var tile = state.Position.Step(state.Facing);
+        if (!Board!.Contains(tile)) return GameResult.Fail(GameError.Blocked);
+
+        state.NextScanAt = now + SCAN_COOLDOWN;
+        var count = Board.Reveal(tile);
+        var scan = new ScanResult(tile, count, Board[tile].IsMine());
+        state.RecordScan(scan);
+        return GameResult.Scanned(scan);
     }
 
     public GameResult End() {
