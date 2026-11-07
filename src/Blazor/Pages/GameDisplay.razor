@@ -1,24 +1,50 @@
 ﻿@inject IJSRuntime JS
+@using Domain.Boards;
+@using Domain.Games;
 
 <br>
 <canvas @ref="gameCanvas"
-        width="@(mapSize * 32)"
-        height="@(mapSize * 32)"
+        width="@(mapSize * tileSize)"
+        height="@(mapSize * tileSize)"
         class="game-canvas">
 </canvas>
 
+
 @code {
     private ElementReference gameCanvas;
-    int mapSize = 16;
+    int mapSize = 0;
+    int tileSize = 32;
 
-    public async Task LoadMap(int[] map, int size)
+    public async Task LoadMap(Board map, IEnumerable<Player> players)
     {
-        mapSize = size;
+        byte[][] tiles = new byte[map.Size][];
+
+        for (int x = 0; x < map.Size; x++)
+        {
+            tiles[x] = new byte[map.Size];
+
+            for (int y = 0; y < map.Size; y++)
+            {
+                Position position = new Position(x, y);
+
+                Console.Write((byte)map[position] + " ");
+
+                tiles[x][y] = (byte)map[position];
+            }
+
+            Console.WriteLine();
+        }
+
+        mapSize = map.Size;
+
+        await InvokeAsync(StateHasChanged);
+        await Task.Yield();
+
         await JS.InvokeVoidAsync(
             "gameRenderer.drawMap",
             gameCanvas,
-            map,
-            size
+            tiles,
+            players
         );
     }
 }

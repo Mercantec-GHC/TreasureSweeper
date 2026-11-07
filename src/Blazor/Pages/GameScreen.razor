@@ -1,5 +1,6 @@
 ﻿@inject IJSRuntime JS
 @using Domain.Games;
+@inject GameRegistry gameRegistry
 
 @page "/game-screen"
 
@@ -10,13 +11,13 @@
     <button class="btn btn-primary" @onclick="JoinGame">Join Game</button>
 </div>
 
-@if (lobby != null)
+@if (game != null)
 {
     <div>
-        <h2>Lobby ID: @lobby.LobbyId</h2>
+        <h2>Lobby ID: @game.Pin</h2>
         <p>Players in Lobby:</p>
         <ul>
-            @foreach (var player in lobby.Players)
+            @foreach (var player in game.Players)
             {
                 <li style="color: @player.Color">
                     @player.Name
@@ -24,8 +25,8 @@
             }
         </ul>
     </div>
-    <InputText @bind-Value="player1.Name" placeholder="Enter your name" />
-    <button class="btn btn-primary" @onclick="() => JoinPlayer(player1)">Join Lobby</button>
+    <InputText @bind-Value="inputName" placeholder="Enter your name" />
+    <button class="btn btn-primary" @onclick="() => JoinPlayer(inputName)">Join Lobby</button>
 
     <button class="btn btn-primary" @onclick="StartGame">Start Game</button>
 }
@@ -54,73 +55,49 @@
 @code {
     private ElementReference gameContainer;
     private GameDisplay? gameDisplay;
-    Lobby lobby = new();
-    Game game = new Game();
-    Player[] players = new Player[0];
 
-    Player player1 = new Player(1, "Player 1");
+    Game? game;
+    Player? player;
+
+
+    bool playerJoined = false;
+
+    string inputName = string.Empty;
 
     string message = string.Empty;
 
-    int mapSize = 16;
-
-    int[] map =
-        {
-            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 5, 0,
-            0, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 1, 0,
-            0, 1, 2, 0, 0, 0, 0, 2, 1, 0, 0, 0, 0, 0, 1, 0,
-            0, 1, 0, 1, 1, 1, 1, 0, 1, 0, 0, 0, 0, 0, 1, 0,
-            0, 1, 0, 1, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 1, 0,
-            0, 1, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-            0, 1, 2, 0, 0, 0, 0, 2, 1, 4, 0, 0, 0, 0, 1, 0,
-            0, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 1, 0,
-            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0,
-            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0,
-            0, 1, 1, 1, 1, 1, 1, 0, 1, 0, 0, 0, 0, 0, 1, 0,
-            0, 1, 2, 0, 0, 0, 0, 2, 1, 0, 0, 0, 0, 0, 1, 0,
-            0, 1, 0, 1, 1, 1, 1, 0, 1, 0, 0, 0, 0, 0, 1, 0,
-            0, 1, 0, 1, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 1, 0,
-            0, 1, 0, 1, 1, 1, 1, 0, 1, 0, 0, 0, 0, 0, 1, 0,
-            0, 1, 0, 1, 1, 1, 1, 0, 1, 0, 0, 0, 0, 0, 1, 0
-    };
-
-
     private async Task StartGame()
     {
-        game.IsActive = true;
-        await LoadMap();
-    }
-
-    private void UpdateLobby()
-    {
-        // Logic to update the lobby goes here
-    }
-
-    private void JoinPlayer(Player player)
-    {
-        if (lobby == null) return;
-
-        if (lobby.Players.Any(p => p.Id == player.Id))
+        if (game == null)
         {
-            message = "You are already in the lobby.";
+            message = "No game to start.";
             return;
         }
 
-        // Find colors already assigned
-        var usedColors = lobby.Players
-            .Select(p => p.Color)
-            .ToHashSet();
+        GameResult result = game.Start();
+        if (!result.Success)
+        {
+            message = $"Error starting game: {result.Error}";
+            return;
+        }
 
-        // Find the next available color
-        string assignedColor = playerColors
-            .FirstOrDefault(c => !usedColors.Contains(c))
-            ?? GenerateRandomColor(usedColors);
+        await LoadMap();
+    }
 
-        // Assign color to player
-        player.Color = assignedColor;
+    private void JoinPlayer(string playerName)
+    {
+        if (game == null || playerJoined) return;
 
-        // Add player to lobby
-        lobby.Players.Add(player);
+        var result = game.Join(playerName, null);
+        if (result.Success) 
+        { 
+            player = result.Player;
+            playerJoined = true; 
+        }
+        else
+        {
+            message = result.Error.ToString()!;
+        }
     }
 
     private string GenerateRandomColor(HashSet<string> usedColors)
@@ -140,7 +117,14 @@
 
     void HostGame()
     {
-        lobby = new Lobby();
+        CreateGameResult result = gameRegistry.Create();
+
+        if (!result.Success)
+        {
+            message = $"Error creating game: {result.Error}";
+            return;
+        }
+        game = result.Game;
     }
 
     void JoinGame()
@@ -150,10 +134,10 @@
 
     private async Task LoadMap()
     {
-        if (gameDisplay != null)
-        {
-            await gameDisplay.LoadMap(map, mapSize);
-        }
+        if (gameDisplay == null || game == null || !game.Players.Any() || game.Board == null) return;
+        
+        await gameDisplay.LoadMap(game.Board, game.Players);
+        
     }
 
     private async Task ToggleFullscreen()
@@ -162,55 +146,5 @@
             "gameFullscreen.toggle",
             gameContainer
         );
-    }
-
-    private readonly List<string> playerColors = new()
-    {
-        "#FF0000", // Red
-        "#0000FF", // Blue
-        "#00CC00", // Green
-        "#FFFF00", // Yellow
-        "#FF00FF", // Magenta
-        "#00FFFF", // Cyan
-        "#FFA500", // Orange
-        "#800080", // Purple
-        "#FF69B4", // Pink
-        "#A52A2A"  // Brown
-    };
-
-
-    public class Player
-    {
-        public int Id { get; set; }
-        public string Name { get; set; }
-        public int Score { get; set; }
-        public string Color { get; set; } = "#000000";
-        public int[] Position { get; set; } = new int[2] { 0, 0 };
-
-        public Player(int id, string name)
-        {
-            Id = id;
-            Name = name;
-            Score = 0;
-        }
-    }
-
-    public class Game
-    {
-        public List<Player> Players { get; set; } = new List<Player>();
-        public bool IsActive { get; set; }
-    }
-
-    public class Lobby
-    {
-        public int LobbyId { get; set; }
-        public List<Player> Players { get; set; } = new List<Player>();
-        public bool IsOpen { get; set; }
-
-        public Lobby()
-        {
-            LobbyId = new Random().Next(1000, 9999); // Generate a random lobby ID
-            IsOpen = true;
-        }
     }
 }
