@@ -6,12 +6,17 @@
 
 <PageTitle>Game Screen</PageTitle>
 
-<div>
-    <button class="btn btn-primary" @onclick="HostGame">Host Game</button>
-    <button class="btn btn-primary" @onclick="JoinGame">Join Game</button>
-</div>
 
-@if (game != null)
+@if (game == null)
+{
+    <div>
+        <button class="btn btn-primary" disabled="@hostedGame" @onclick="HostGame">Host Game</button>
+        <br /><br />
+        <InputText @bind-Value="pinInput" placeholder="Enter game pin" />
+        <button class="btn btn-primary" @onclick="JoinGame">Join Game</button>
+    </div>
+}
+else
 {
     <div>
         <h2>Lobby ID: @game.Pin</h2>
@@ -26,11 +31,26 @@
         </ul>
     </div>
     <InputText @bind-Value="inputName" placeholder="Enter your name" />
-    <button class="btn btn-primary" @onclick="() => JoinPlayer(inputName)">Join Lobby</button>
+    <button class="btn btn-primary" @onclick="() => JoinPlayer()">Join Lobby</button>
+    <br />
+    @if (hostedGame)
+    {
+        <button class="btn btn-primary" @onclick="StartGame">Start Game</button>
+        <br />
+    }
+    <br />
+    <button class="btn btn-primary" @onclick="LeaveGame">Leave Game</button>
 
-    <button class="btn btn-primary" @onclick="StartGame">Start Game</button>
+    <div @ref="gameContainer" class="game-container">
+
+        <button class="btn btn-primary fullscreen-button"
+                @onclick="ToggleFullscreen">
+            ⛶ Fullscreen
+        </button>
+
+        <GameDisplay @ref="gameDisplay" />
+    </div>
 }
-
 
 @if (!string.IsNullOrEmpty(message))
 {
@@ -39,19 +59,6 @@
     </div>
 }
 
-
-<div @ref="gameContainer" class="game-container">
-
-    <button class="btn btn-primary fullscreen-button"
-            @onclick="ToggleFullscreen">
-        ⛶ Fullscreen
-    </button>
-
-    <GameDisplay @ref="gameDisplay" />
-
-</div>
-
-
 @code {
     private ElementReference gameContainer;
     private GameDisplay? gameDisplay;
@@ -59,8 +66,10 @@
     Game? game;
     Player? player;
 
+    string pinInput = "0000";
 
     bool playerJoined = false;
+    bool hostedGame = false;
 
     string inputName = string.Empty;
 
@@ -84,11 +93,11 @@
         await LoadMap();
     }
 
-    private void JoinPlayer(string playerName)
+    private void JoinPlayer()
     {
         if (game == null || playerJoined) return;
 
-        var result = game.Join(playerName, null);
+        var result = game.Join(pinInput, null);
         if (result.Success) 
         { 
             player = result.Player;
@@ -125,11 +134,51 @@
             return;
         }
         game = result.Game;
+        hostedGame = true;
     }
 
     void JoinGame()
     {
-        // Logic to join the game goes here
+        if (string.IsNullOrWhiteSpace(pinInput))
+        {
+            message = "Please enter a valid PIN.";
+            return;
+        }
+        if (pinInput.Length != 4)
+        {
+            message = "PIN must be 4 characters long.";
+            return;
+        }
+
+        Game? joinableGame = gameRegistry.Find(pinInput.ToString());
+        if (joinableGame == null)
+        {
+            message = $"No game found with PIN {pinInput}.";
+            return;
+        }
+        
+        game = joinableGame;
+        hostedGame = false;
+    }
+
+    void LeaveGame()
+    {
+        if (game == null) return;
+        if (player != null)
+        {
+            //game.Leave(player);
+        }
+
+        if (hostedGame)
+        {
+            //gameRegistry.Remove(game.Pin);
+        }
+
+        playerJoined = false;
+        player = null;
+        game = null;
+        hostedGame = false;
+        message = "You have left the game.";
     }
 
     private async Task LoadMap()
