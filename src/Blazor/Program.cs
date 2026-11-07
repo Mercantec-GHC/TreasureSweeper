@@ -5,7 +5,6 @@ using Infrastructure;
 using Infrastructure.Persistence;
 using Infrastructure.Persistence.Interfaces;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Logging;
 
 var builder = WebApplication.CreateBuilder(args);
 
