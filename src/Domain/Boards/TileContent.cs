@@ -4,7 +4,6 @@ namespace Domain.Boards;
 // bit 7     (0b1000_0000): tile has been discovered
 // bits 5-6  (0b0110_0000): hidden content: 1 = Treasure, 2 = FreezeMine, 3 = PointMine
 // bits 0-3  (0b0000_1111): number of nearby mines (0-8)
-// bit 4     (0b0001_0000): indicates a hole
 
 public enum TileContent { 
     Empty                = 0b0000_0000, // 0

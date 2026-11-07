@@ -7,6 +7,9 @@ public enum GameError
     NoPlayers,
     RoundNotWaiting,
     RoundNotPlaying,
+    Frozen,
+    OnCooldown,
+    Blocked,
 }
 
 public sealed record GameResult(GameError? Error)

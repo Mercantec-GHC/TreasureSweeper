@@ -2,11 +2,18 @@ using Domain.Boards;
 
 namespace Domain.Games;
 
-public sealed class Game(string pin)
+public sealed class Game(string pin, TimeProvider? time = null)
 {
+    private readonly Lock _gate = new();
     public const int MAX_PLAYERS = 8;
+    public static readonly TimeSpan MOVE_COOLDOWN = TimeSpan.FromMilliseconds(200);
+
+    private readonly TimeProvider _time = time ?? TimeProvider.System;
     private readonly Dictionary<string, Player> _players = [];
     private readonly Dictionary<string, string> _devices = [];
+    private readonly Dictionary<string, PlayerState> _states = [];
+
+    public event Action? Changed;
     
     public string Pin { get; } = pin;
     public Board? Board { get; private set; }
@@ -14,6 +21,14 @@ public sealed class Game(string pin)
     public IReadOnlyCollection<Player> Players => _players.Values;
 
     public JoinResult Join(string? name, string? deviceId)
+    {
+        JoinResult result;
+        lock (_gate) result = JoinLocked(name, deviceId);
+        if (result.Success) Changed?.Invoke();
+        return result;
+    }
+
+    private JoinResult JoinLocked(string? name, string? deviceId)
     {
         var hasDevice = !string.IsNullOrWhiteSpace(deviceId);
 
@@ -51,34 +66,101 @@ public sealed class Game(string pin)
         return player.DeviceId is null || player.DeviceId == deviceId ? player : null;
     }
 
-    public GameResult Start(Random? rng = null)
+    public GameResult Start(Random? rng = null) {
+        GameResult result;
+        lock (_gate) result = StartLocked(rng);
+        if (result.Success) Changed?.Invoke();
+        return result;
+    }
+
+    private GameResult StartLocked(Random? rng = null)
     {
         if (Phase != GamePhase.Waiting) return GameResult.Fail(GameError.RoundNotWaiting);
         if (_players.Count == 0) return GameResult.Fail(GameError.NoPlayers);
         Board = BoardGenerator.Generate(_players.Count, rng ?? Random.Shared);
+
+        _states.Clear();
+        foreach (var (player, spawn) in _players.Values.Zip(Board.Spawns))
+            _states[player.Id] = new PlayerState(spawn.Position, spawn.Facing);
+
         Phase = GamePhase.Playing;
         return GameResult.Ok;
     }
 
-    public GameResult Act(Player player, PlayerAction action)
-    {
+    public GameResult Act(Player player, PlayerAction action) {
+        GameResult result;
+        lock (_gate) result = ActLocked(player, action);
+        if (result.Success) Changed?.Invoke();
+        return result;
+    }
+
+    private GameResult ActLocked(Player player, PlayerAction action)
+    {    
         if (Phase != GamePhase.Playing) return GameResult.Fail(GameError.RoundNotPlaying);
-        // Move/rotate/scan/dig rules come with the gameplay issues.
+        
+        var state = _states[player.Id];
+        var now = _time.GetUtcNow();
+        if (now < state.FrozenUntil) return GameResult.Fail(GameError.Frozen);
+
+        return action.Kind switch
+        {
+            ActionKind.Move => Move(state, now),
+            ActionKind.Rotate => Rotate(state, action.Turn!.Value),
+            _ => GameResult.Ok,
+        };
+    }
+
+    private GameResult Move(PlayerState state, DateTimeOffset now)
+    {
+        
+        if (now < state.NextMoveAt) return GameResult.Fail(GameError.OnCooldown);
+
+        var target = state.Position.Step(state.Facing);
+        if (!Board!.Contains(target) || Board.IsHole(target)) return GameResult.Fail(GameError.Blocked);
+
+        state.Position = target;
+        state.NextMoveAt = now + MOVE_COOLDOWN;
         return GameResult.Ok;
     }
 
-    public GameResult End()
+    private static GameResult Rotate(PlayerState state, Direction turn)
+    {
+        state.Facing = state.Facing.Turn(turn);
+        return GameResult.Ok;
+    }
+
+    public GameResult End() {
+        GameResult result;
+        lock (_gate) result = EndLocked();
+        if (result.Success) Changed?.Invoke();
+        return result;
+    }
+
+    private GameResult EndLocked()
     {
         if (Phase != GamePhase.Playing) return GameResult.Fail(GameError.RoundNotPlaying);
         Phase = GamePhase.Ended;
         return GameResult.Ok;
     }
 
-    public GameResult Reset()
-    {
-        if (Phase == GamePhase.Playing) return GameResult.Fail(GameError.RoundInProgress);
-        Board = null;
-        Phase = GamePhase.Waiting;
-        return GameResult.Ok;
+    public GameResult Reset() {
+        GameResult result;
+        lock (_gate) result = ResetLocked();
+        if (result.Success) Changed?.Invoke();
+        return result;
     }
+
+    private GameResult ResetLocked()
+    {
+        lock (_gate)
+        {
+            if (Phase == GamePhase.Playing) return GameResult.Fail(GameError.RoundInProgress);
+            Board = null; 
+            _states.Clear();
+            Phase = GamePhase.Waiting;
+            return GameResult.Ok;
+        }
+    }
+
+    public PlayerState? StateOf(string playerId) => _states.GetValueOrDefault(playerId);
 }
