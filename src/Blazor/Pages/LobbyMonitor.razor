@@ -1,0 +1,123 @@
+@page "/monitor"
+@using Domain.Games
+@inject GameRegistry Registry
+@implements IDisposable
+
+@* Reference/stopgap page for #51/#69: reads live game state straight from the
+   backend GameRegistry (Blazor Server, same process as the API). Shows the real
+   lobby so the controller simulator can be watched without hardware.
+   It shows only the lobby (players) - the board needs a state endpoint (#20). *@
+
+<PageTitle>Lobby monitor</PageTitle>
+
+<h1>Lobby monitor</h1>
+<p>Live view of a backend game. Create a game with your own PIN, or view the PIN the simulator printed.</p>
+
+<div class="mb-3 d-flex gap-2" style="max-width:520px;">
+    <input class="form-control" @bind="pinInput" placeholder="PIN (4-8 digits)" />
+    <button class="btn btn-primary" @onclick="CreateGame">Create</button>
+    <button class="btn btn-secondary" @onclick="ViewGame">View</button>
+</div>
+
+@if (error is not null)
+{
+    <div class="alert alert-warning">@error</div>
+}
+
+@if (game is not null)
+{
+    <h2>PIN @game.Pin <small class="text-muted">— @game.Phase</small></h2>
+    <p>@players.Count / @Game.MAX_PLAYERS players</p>
+
+    <ul class="list-unstyled">
+        @foreach (var p in players)
+        {
+            <li class="mb-1">
+                <span style="display:inline-block;width:1em;height:1em;border-radius:50%;background:@p.Color;vertical-align:middle;"></span>
+                <strong>#@p.Number</strong> @p.Name <span style="color:@p.Color">@p.Symbol</span>
+            </li>
+        }
+        @if (players.Count == 0)
+        {
+            <li class="text-muted">No players yet. Run the simulator with <code>--pin @game.Pin</code>.</li>
+        }
+    </ul>
+
+    <div class="d-flex gap-2">
+        <button class="btn btn-success" @onclick="StartRound" disabled="@(game.Phase != GamePhase.Waiting)">Start round</button>
+        <button class="btn btn-outline-secondary" @onclick="ResetRound">Reset to lobby</button>
+    </div>
+}
+
+@code {
+    string pinInput = "";
+    string? currentPin;
+    Game? game;
+    List<Player> players = new();
+    string? error;
+    PeriodicTimer? timer;
+
+    protected override void OnInitialized()
+    {
+        timer = new PeriodicTimer(TimeSpan.FromSeconds(1));
+        _ = RefreshLoop();
+    }
+
+    async Task RefreshLoop()
+    {
+        try
+        {
+            while (await timer!.WaitForNextTickAsync())
+            {
+                Refresh();
+                await InvokeAsync(StateHasChanged);
+            }
+        }
+        catch (OperationCanceledException) { }
+    }
+
+    void Refresh()
+    {
+        if (currentPin is null) { game = null; return; }
+        game = Registry.Find(currentPin);
+        if (game is null) { players = new(); return; }
+        // Game is not thread-safe yet (#12); a concurrent join can break enumeration.
+        try { players = game.Players.OrderBy(p => p.Number).ToList(); }
+        catch { /* keep the previous snapshot until the next tick */ }
+    }
+
+    void CreateGame()
+    {
+        error = null;
+        var result = Registry.Create(string.IsNullOrWhiteSpace(pinInput) ? null : pinInput.Trim());
+        if (!result.Success) { error = $"Create failed: {result.Error}"; return; }
+        currentPin = result.Game!.Pin;
+        pinInput = currentPin;
+        Refresh();
+    }
+
+    void ViewGame()
+    {
+        error = null;
+        if (string.IsNullOrWhiteSpace(pinInput)) { error = "Enter a PIN first."; return; }
+        currentPin = pinInput.Trim();
+        Refresh();
+        if (game is null) error = $"No game found with PIN {currentPin}.";
+    }
+
+    void StartRound()
+    {
+        if (game is null) return;
+        var r = game.Start();
+        if (!r.Success) error = $"Start failed: {r.Error}";
+    }
+
+    void ResetRound()
+    {
+        if (game is null) return;
+        var r = game.Reset();
+        if (!r.Success) error = $"Reset failed: {r.Error}";
+    }
+
+    public void Dispose() => timer?.Dispose();
+}
