@@ -3,6 +3,7 @@
 #include <WiFiNINA.h>
 #include "config.h"
 #include <ArduinoJson.h>
+#include <WiFiSSLClient.h>
 
 MKRIoTCarrier carrier;
 uint32_t lastRepeat = 0;
