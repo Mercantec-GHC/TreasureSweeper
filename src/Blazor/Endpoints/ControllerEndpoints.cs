@@ -1,4 +1,5 @@
 using API.Mapping;
+using Domain.Boards;
 using Domain.Games;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
@@ -89,10 +90,24 @@ internal static class ControllerEndpoints
         if (!result.Success)
             return Reply(StatusCodes.Status200OK, ControllerJoinResponse.Rejected(result.Error!.Value.ToHttp().Message));
 
-        return Reply(StatusCodes.Status200OK, result.Scan is { } scan 
-            ? ControllerJoinResponse.Scanned(scan.OnMine, scan.AdjacentMines)
-            : ControllerJoinResponse.Success());
+        return Reply(StatusCodes.Status200OK, result switch
+        {
+            { Scan: { } scan } => ControllerJoinResponse.Scanned(scan.OnMine, scan.AdjacentMines),
+            { Dig: { } dig } => ControllerJoinResponse.Dug(DigLight(dig)),
+            { Mine: { } mine } => ControllerJoinResponse.Dug(MineLight(mine.Mine)),
+            _ => ControllerJoinResponse.Success() 
+        });
     }
+
+    private static string DigLight(DigResult dig) => dig switch
+    {
+        { Found: TileContent.Treasure } => ControllerLight.Yellow,
+        { Triggered: true } => MineLight(dig.Found),
+        _ => ControllerLight.Off,
+    };
+
+    private static string MineLight(TileContent mine) =>
+        mine == TileContent.PointMine ? ControllerLight.Purple : ControllerLight.Blue;
 
     private static bool TryResolve(
         GameRegistry registry, string? pin, string? playerId, string? deviceId,
