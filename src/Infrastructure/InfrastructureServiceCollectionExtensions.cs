@@ -39,6 +39,7 @@ public static class InfrastructureServiceCollectionExtensions
 		});
 
 		services.AddScoped<IRoundResultStore, RoundResultStore>();
+		services.AddScoped<ILeaderboardQueries, LeaderboardQueries>();
 		return services;
     }
 }

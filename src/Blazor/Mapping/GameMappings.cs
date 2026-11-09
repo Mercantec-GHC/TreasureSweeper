@@ -1,19 +1,55 @@
 using Shared.Games;
+using static Domain.Boards.TileContentExtensions;
 using DomainGames = Domain.Games;
+using DomainBoards = Domain.Boards;
 
 namespace API.Mapping;
 
 internal static class GameMappings
 {
+    private const int HOLE_BIT = 0b0001_0000;
+
     public static GameResponse ToResponse(this DomainGames.Game game) => new(
         game.Pin,
         game.Phase.ToResponse(),
         DomainGames.Game.MAX_PLAYERS,
-        game.Players.OrderBy(p => p.Number).Select(p => p.ToResponse()).ToList()
+        game.Players.OrderBy(p => p.Number).Select(p => p.ToResponse(game.StateOf(p.Id), game.Board)).ToList()
     );
 
-    public static PlayerResponse ToResponse(this DomainGames.Player player) =>
-        new(player.Id, player.Number, player.Name, player.Color, player.Symbol);
+    public static PlayerResponse ToResponse(this DomainGames.Player player, 
+        DomainGames.PlayerState? state = null, DomainBoards.Board? board = null) =>
+        new(player.Id, player.Number, player.Name, player.Color, player.Symbol,
+            state is null ? null : new PositionResponse(state.Position.X, state.Position.Y),
+            state?.Facing.ToResponse(),
+            state is null || board is null ? null : board.ViewFor(state));
+
+    public static IReadOnlyList<int?> ViewFor(this DomainBoards.Board board, DomainGames.PlayerState viewer)
+    {
+        const int reach = DomainBoards.BoardSettings.VIEW_DISTANCE;
+        const int size = reach * 2 + 1;
+        var tiles = new int?[size * size];
+
+        for (var row = 0; row < size; row++)
+        for (var col = 0; col < size; col++)
+        {
+            var p = viewer.Position.Relative(viewer.Facing, forward: reach - row, right: col - reach);
+            tiles[row * size + col] = board.Contains(p) ? Visible(board[p]) : null;
+        }
+
+        return tiles;
+    }
+
+    private static int Visible(DomainBoards.TileContent t) =>
+        t.IsDiscovered() ? (int)t : (int)t & HOLE_BIT;
+
+    public static Direction ToResponse(this Domain.Boards.Direction direction) => direction switch
+    {
+        Domain.Boards.Direction.Up    => Direction.Up,
+        Domain.Boards.Direction.Right => Direction.Right,
+        Domain.Boards.Direction.Down  => Direction.Down,
+        Domain.Boards.Direction.Left  => Direction.Left,
+        _ => throw new ArgumentOutOfRangeException(nameof(direction), direction, null),
+    };
 
     public static GamePhase ToResponse(this DomainGames.GamePhase phase) => phase switch
     {
@@ -30,6 +66,9 @@ internal static class GameMappings
         DomainGames.GameError.NoPlayers       => (StatusCodes.Status409Conflict, "No players have joined"),
         DomainGames.GameError.RoundNotWaiting => (StatusCodes.Status409Conflict, "Round already started"),
         DomainGames.GameError.RoundNotPlaying => (StatusCodes.Status409Conflict, "No round is running"),
+        DomainGames.GameError.Frozen          => (StatusCodes.Status409Conflict, "Player is frozen"),
+        DomainGames.GameError.OnCooldown      => (StatusCodes.Status429TooManyRequests, "Player is on cooldown"),
+        DomainGames.GameError.Blocked         => (StatusCodes.Status409Conflict, "Player is blocked"),
         _ => throw new ArgumentOutOfRangeException(nameof(error), error, null),
     };
 
