@@ -131,7 +131,7 @@ public sealed class Game(string pin, TimeProvider? time = null)
         state.NextMoveAt = now + MOVE_COOLDOWN;
 
         var content = Board[target];
-        var mine = Board[target].HiddenContent();
+        var mine = content.HiddenContent();
         if (!mine.IsMine() || content.IsDiscovered()) return GameResult.Ok;
 
         var points = TriggerMine(state, target, mine, now);
