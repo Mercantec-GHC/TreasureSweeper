@@ -47,8 +47,9 @@ Response on success:
 
 | `action` | Body |
 |---|---|
-| `move`, `rotate`, `dig` | `{ "ok": true }` |
+| `move`, `rotate` | `{ "ok": true }` |
 | `scan` | `{ "ok": true, "light": "red", "count": 2 }` |
+| `dig` | `{ "ok": true, "light": "yellow" }` (see [Dig](#dig)) |
 
 A rule rejection (cooldown, frozen, facing the edge, no round running) is always `200` with `{ "ok": false, "message": "…" }` and **never** includes `light` or `count`. The controller keeps its current light.
 
@@ -68,20 +69,29 @@ A rule rejection (cooldown, frozen, facing the edge, no round running) is always
 | Frozen | `Player is frozen` |
 | No round running | `No round is running` |
 
+#### Dig
+
+- **Dug tile:** the tile directly in front of the player, the same tile scan uses. The player's own tile is not dug.
+- **`light`:** `"yellow"` if the tile held a treasure, otherwise `"off"`. Always present on a successful dig. No `count` is sent.
+- A treasure gives points (see [game-rules.md](game-rules.md#scoring-tunable)) and leaves a hole. Digging an empty tile, a hole or (for now) a mine gives nothing.
+- **Cooldown:** 1 s per player (`Game.DIG_COOLDOWN`), also on an empty tile. Independent of move and scan.
+- **Rejections:** the same cases and messages as scan.
+
 #### Light values
 
 | `light` | Sent by | Oplà |
 |---|---|---|
-| `off` | scan, safe tile | LEDs off |
+| `off` | scan, safe tile; dig, no treasure | LEDs off |
 | `red` | scan, mine on the scanned tile | Red for `LIGHT_MS` (1.5 s), then off |
+| `yellow` | dig, treasure | Yellow for `LIGHT_MS`, then off |
 
-Reserved for later issues: `yellow` (treasure), `purple` (point mine), `blue` (frozen), `green` (won). The firmware treats unknown values as `off`.
+Reserved for later issues: `purple` (point mine), `blue` (frozen), `green` (won). The firmware treats unknown values as `off`.
 
 ## Status codes
 
 | Status | When | Body | Controller reaction |
 |---|---|---|---|
-| `200` | Success | `{ ok: true }`, plus `light`/`count` for scan | Scan: sets the light |
+| `200` | Success | `{ ok: true }`, plus `light`/`count` for scan and `light` for dig | Scan/dig: sets the light |
 | `200` | Rule rejection (e.g. no round running) | `{ ok: false, message }` | Shows message, keeps session |
 | `400` | Missing PIN on join, unknown action/direction | `{ ok: false, error }` | Shows error |
 | `403` | Unknown `playerId`, or `deviceId` doesn't match | `{ ok: false, error }` | Forgets session, rejoins |
@@ -106,4 +116,4 @@ Sent by the server but not used by the firmware: `name`, `number`, `reconnected`
 - `playerId` is a random GUID and acts as the session secret for heartbeat/action.
 - `deviceId` is derived from the MAC and is **not** secret. Anyone who knows it can call `/join` and receive that player's `playerId`. Accepted for now (local classroom network); see #50 for transport security.
 - `deviceId` is **not** truncated to 40 chars as AI-Bomberman does: truncation lets different IDs collide and impersonate each other.
-- `light` and `count` are sent only to the controller that scanned. The scanned tile's content also appears on the screen, so all players can see it.
+- `light` and `count` are sent only to the controller that scanned or dug. The tile's content also appears on the screen, so all players can see it.
