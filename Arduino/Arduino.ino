@@ -189,6 +189,7 @@ uint16_t parseColor(const String &hex){
 }
 
 void showIdentity(){
+  carrier.display.setRotation(180);
   carrier.display.fillScreen(parseColor(playerColorHex));
   carrier.display.setTextColor(0x0000);                         // black
   carrier.display.setTextSize(2);
