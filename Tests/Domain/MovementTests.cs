@@ -20,6 +20,9 @@ public class MovementTests
         var game = new Game("1234", time);
         var player = game.Join("P1", "DEV_1").Player!;
         game.Start(new Random(1));
+        for (var x = 0; x < game.Board!.Size; x++)
+        for (var y = 0; y < game.Board.Size; y++)
+            game.Board.Set(new(x, y), TileContent.Empty);
         var state = game.StateOf(player.Id)!;
         state.Position = MIDDLE;
         state.Facing = Direction.Up;
@@ -174,5 +177,51 @@ public class MovementTests
         game.Act(player, MOVE);
 
         Assert.False(raised);
+    }
+
+    [Fact]
+    public void Move_OntoPointMine_CostsPointsAndLeavesPlayerInHole()
+    {
+        var (game, player, state, _) = StartedSolo();
+        var target = MIDDLE.Step(Direction.Up);
+        game.Board!.Set(target, TileContent.PointMine);
+
+        var hit = game.Act(player, MOVE).Mine!;
+
+        Assert.Equal(TileContent.PointMine, hit.Mine);
+        Assert.Equal(-Game.POINT_MINE_PENALTY, state.Score);
+        Assert.Equal(1, state.PointMinesHit);
+        Assert.Equal(target, state.Position);
+        Assert.Equal(TileContent.Hole, game.Board[target]);
+    }
+
+    [Fact]
+    public void Move_OntoFreezeMine_FreezesThenPlayerCanLeaveHole()
+    {
+        var (game, player, state, time) = StartedSolo();
+        game.Board!.Set(MIDDLE.Step(Direction.Up), TileContent.FreezeMine);
+
+        game.Act(player, MOVE);
+
+        Assert.Equal(GameError.Frozen, game.Act(player, MOVE).Error);
+        time.Advance(Game.FREEZE_DURATION);
+        Assert.True(game.Act(player, MOVE).Success);
+    }
+
+    [Fact]
+    public void Move_OntoScannedMine_IsSafe()
+    {
+        var (game, player, state, time) = StartedSolo();
+        var target = MIDDLE.Step(Direction.Up);
+        game.Board!.Set(target, TileContent.FreezeMine);
+        game.Act(player, new PlayerAction(ActionKind.Scan));
+
+        var result = game.Act(player, MOVE);
+
+        Assert.True(result.Success);
+        Assert.Null(result.Mine);
+        Assert.Equal(target, state.Position);
+        Assert.True(state.FrozenUntil <= time.Now);
+        Assert.Equal(TileContent.DiscoveredFreezeMine, game.Board[target]);
     }
 }
