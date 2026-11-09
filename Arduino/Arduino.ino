@@ -22,6 +22,7 @@ uint8_t ledB = 0;
 uint32_t ledStartTime = 0;
 const uint32_t LED_DURATION = 200;
 bool ledActive = false;
+bool connected = false;
 
 ControllerClient transport;
 String playerId;
@@ -302,15 +303,14 @@ void setAllLeds(uint8_t r, uint8_t g, uint8_t b) {
 
 void updateLeds() {
   if (ledActive && millis() - ledStartTime >= LED_DURATION) {
-    carrier.leds.clear();
-    carrier.leds.show();
     ledActive = false;
-  }
-  // only for testing delete later 
-  static bool tested = false;
-  if (!tested) {
-    setAllLeds(255, 0, 0); 
-    tested = true;
+  
+if (connected) {
+      setAllLeds(0, 255, 0);
+    } else {
+      carrier.leds.clear();
+      carrier.leds.show();
+    }
   }
 }
 
@@ -320,7 +320,8 @@ void gameWin (){
 }
 
 void gameConnect(){
-
+  connected = true;
+  setAllLeds(0, 255, 0);
 }
 
 void scannedNothing(){
