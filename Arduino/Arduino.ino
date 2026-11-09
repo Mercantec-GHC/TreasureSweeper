@@ -18,6 +18,8 @@ uint32_t lastInputPoll = 0;
 
 ControllerClient transport;
 String playerId;
+int playerNumber = 0;
+String playerColorHex = "";
 String deviceId;
 String lastError;
 bool ready = false;
@@ -135,7 +137,7 @@ bool requestJson(const char *endpoint, JsonDocument *request, JsonDocument &repl
     lastHttpStatus = response.status;
     ControllerBodyStream bodyStream(transport, response.chunked, response.length);
     JsonDocument filter;
-    const char *fields[] = {"ok", "playerId", "error", "message", "side"};
+    const char *fields[] = {"ok", "playerId", "error", "message", "side", "number", "color"};
     for (const char *field : fields) filter[field] = true;
     DeserializationError error = deserializeJson(
       reply, bodyStream, DeserializationOption::Filter(filter));
@@ -179,6 +181,25 @@ bool postController(const char *endpoint, JsonDocument &request, JsonDocument & 
   return true;
 }
 
+uint16_t parseColor(const String &hex){
+  if (hex.length() < 7 || hex[0] != '#') return 0xFFFF;         // white fallback
+  long v = strtol(hex.c_str() + 1, nullptr, 16);
+  uint8_t r = (v >> 16) & 0xFF, g = (v >> 8) & 0xFF, b = v & 0xFF;
+  return carrier.display.color565(r, g, b);                     // hex -> RGB565
+}
+
+void showIdentity(){
+  carrier.display.setRotation(180);
+  carrier.display.fillScreen(parseColor(playerColorHex));
+  carrier.display.setTextColor(0x0000);                         // black
+  carrier.display.setTextSize(2);
+  carrier.display.setCursor(80, 70);
+  carrier.display.print("Player");
+  carrier.display.setTextSize(8);
+  carrier.display.setCursor(100, 100);
+  carrier.display.print(playerNumber);
+}
+
 void joinGame(){
   lastJoinAttempt = millis();
   JsonDocument request, reply;
@@ -191,6 +212,10 @@ void joinGame(){
     return;
   }
   playerId = assignedId;
+  playerNumber   = reply["number"] | 0;
+  playerColorHex = reply["color"] | "#FFFFFF";
+  showIdentity();
+  Serial.print("Number "); Serial.println(playerNumber);
   ready = true;
   releaseBeforePlay = true;
   resetControls();
@@ -278,23 +303,20 @@ bool repeatKey(int key){
 }
 
 void setup() {
-Serial.begin(115200);
-uint32_t started = millis();
-while (!Serial && millis() - started < 1500) {
+  Serial.begin(115200);
+  uint32_t started = millis();
+  while (!Serial && millis() - started < 1500) { ; }   // just wait briefly for Serial
 
   inputs.begin();
   transport.onPoll(readKeys);
   WiFi.setTimeout(3000);
   transport.setRetry(false);
   lastJoinAttempt = millis() - 5000;
-  
   lastWifiAttempt = millis() - 10000;
-  if (USE_CASE) carrier.withCase();
-  else carrier.noCase();
-  if (!carrier.begin()){
+  if (USE_CASE) carrier.withCase(); else carrier.noCase();
+  if (!carrier.begin()) {
     Serial.println("Carrier failed");
-    while (true){}
-  }
+    while (true) {}
   }
 }
 

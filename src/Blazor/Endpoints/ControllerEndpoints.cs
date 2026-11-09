@@ -62,7 +62,7 @@ internal static class ControllerEndpoints
 
         var player = result.Player!;
         return Reply(StatusCodes.Status200OK,
-            ControllerJoinResponse.Joined(player.Id, player.Name, player.Number, result.Reconnected));
+            ControllerJoinResponse.Joined(player.Id, player.Name, player.Number, player.Color, result.Reconnected));
     }
 
     private static JsonHttpResult<ControllerJoinResponse> Heartbeat(

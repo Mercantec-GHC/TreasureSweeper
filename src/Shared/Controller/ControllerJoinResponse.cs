@@ -12,11 +12,12 @@ public sealed record ControllerJoinResponse(
     [property: JsonIgnore(Condition =JsonIgnoreCondition.WhenWritingNull)] string? Error = null,
     [property: JsonIgnore(Condition =JsonIgnoreCondition.WhenWritingNull)] string? Message = null,
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? Light = null,
-    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] int? Count = null
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] int? Count = null,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? Color = null
 )
 {
-    public static ControllerJoinResponse Joined(string playerId, string name, int number, bool reconnected) =>
-        new(true, playerId, name, number, reconnected ? true : null);
+    public static ControllerJoinResponse Joined(string playerId, string name, int number, string color, bool reconnected) =>
+        new(true, playerId, name, number, reconnected ? true : null, Color: color);
 
     public static ControllerJoinResponse Fail(string error) => new(false, Error: error);
 
