@@ -17,14 +17,14 @@
 
     public async Task LoadMap(Game game)
     {
-        List<PlayerInfo> playerInfoList = new List<PlayerInfo>();
+        List<PlayerDisplayInfo> playerInfoList = new List<PlayerDisplayInfo>();
 
         foreach (var player in game.Players)
         {
             PlayerState? playerState = game.StateOf(player.Id);
             if (playerState == null) continue;
 
-            playerInfoList.Add(new PlayerInfo
+            playerInfoList.Add(new PlayerDisplayInfo
             {
                 Color = player.Color,
                 Symbol = player.Symbol,
@@ -65,7 +65,7 @@
         );
     }
 
-    public class PlayerInfo
+    public class PlayerDisplayInfo
     {
         public string Color { get; set; } = string.Empty;
         public string Symbol { get; set; } = string.Empty;
