@@ -8,11 +8,14 @@ public sealed class Game(string pin, TimeProvider? time = null)
     public const int MAX_PLAYERS = 8;
     public static readonly TimeSpan MOVE_COOLDOWN = TimeSpan.FromMilliseconds(200);
     public static readonly TimeSpan SCAN_COOLDOWN = TimeSpan.FromSeconds(1);
+    public static readonly TimeSpan DIG_COOLDOWN = TimeSpan.FromSeconds(1);
+    public const int TREASURE_START_POINTS = 1000;
 
     private readonly TimeProvider _time = time ?? TimeProvider.System;
     private readonly Dictionary<string, Player> _players = [];
     private readonly Dictionary<string, string> _devices = [];
     private readonly Dictionary<string, PlayerState> _states = [];
+    private int _treasuresDug;
 
     public event Action? Changed;
     
@@ -81,6 +84,7 @@ public sealed class Game(string pin, TimeProvider? time = null)
         Board = BoardGenerator.Generate(_players.Count, rng ?? Random.Shared);
 
         _states.Clear();
+        _treasuresDug = 0;
         foreach (var (player, spawn) in _players.Values.Zip(Board.Spawns))
             _states[player.Id] = new PlayerState(spawn.Position, spawn.Facing);
 
@@ -108,6 +112,7 @@ public sealed class Game(string pin, TimeProvider? time = null)
             ActionKind.Move => Move(state, now),
             ActionKind.Rotate => Rotate(state, action.Turn!.Value),
             ActionKind.Scan => Scan(state, now),
+            ActionKind.Dig => Dig(state, now),
             _ => GameResult.Ok,
         };
     }
@@ -145,6 +150,28 @@ public sealed class Game(string pin, TimeProvider? time = null)
         return GameResult.Scanned(scan);
     }
 
+    private GameResult Dig(PlayerState state, DateTimeOffset now)
+    {
+        var tile = state.Position.Step(state.Facing);
+        if (!Board!.Contains(tile)) return GameResult.Fail(GameError.Blocked);
+
+        if (now < state.NextDigAt) return GameResult.Fail(GameError.OnCooldown);
+        state.NextDigAt = now + DIG_COOLDOWN;
+
+        var found = Board[tile].HiddenContent();
+
+        if (found != TileContent.Treasure)
+            return GameResult.Dug(new DigResult(tile, found, 0));
+
+        var points = TREASURE_START_POINTS - _treasuresDug * 100;
+        _treasuresDug++;
+        state.Score += points;
+        state.TreasuresFound++;
+        Board.Set(tile, TileContent.Hole);
+
+        return GameResult.Dug(new DigResult(tile, found, points));
+    }
+
     public GameResult End() {
         GameResult result;
         lock (_gate) result = EndLocked();
@@ -173,6 +200,7 @@ public sealed class Game(string pin, TimeProvider? time = null)
             if (Phase == GamePhase.Playing) return GameResult.Fail(GameError.RoundInProgress);
             Board = null; 
             _states.Clear();
+            _treasuresDug = 0;
             Phase = GamePhase.Waiting;
             return GameResult.Ok;
         }
