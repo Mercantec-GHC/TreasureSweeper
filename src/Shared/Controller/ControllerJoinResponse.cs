@@ -10,7 +10,9 @@ public sealed record ControllerJoinResponse(
     [property: JsonIgnore(Condition =JsonIgnoreCondition.WhenWritingNull)] int? Number = null,
     [property: JsonIgnore(Condition =JsonIgnoreCondition.WhenWritingNull)] bool? Reconnected = null,
     [property: JsonIgnore(Condition =JsonIgnoreCondition.WhenWritingNull)] string? Error = null,
-    [property: JsonIgnore(Condition =JsonIgnoreCondition.WhenWritingNull)] string? Message = null
+    [property: JsonIgnore(Condition =JsonIgnoreCondition.WhenWritingNull)] string? Message = null,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? Light = null,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] int? Count = null
 )
 {
     public static ControllerJoinResponse Joined(string playerId, string name, int number, bool reconnected) =>
@@ -21,4 +23,13 @@ public sealed record ControllerJoinResponse(
     public static ControllerJoinResponse Success() => new(true);
 
     public static ControllerJoinResponse Rejected(string message) => new(false, Message: message);
+
+    public static ControllerJoinResponse Scanned(bool onMine, int count = 0) =>
+        new(true, Light: onMine ? ControllerLight.Red : ControllerLight.Off, Count: count);
+}
+
+public static class ControllerLight
+{
+    public const string Off = "off";
+    public const string Red = "red";
 }

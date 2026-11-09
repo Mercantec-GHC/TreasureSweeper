@@ -16,17 +16,19 @@ The single reference for how Treasure Sweeper works. Values marked *tunable* are
 | Mines | 32 freeze mines + 32 point mines, placed randomly on empty tiles. |
 | Safe start | No mine within distance 1 of any start tile. Start tiles are always empty. |
 | Start positions | Spread out (each new start is the best of 50 random candidates by distance). Each player starts facing the centre of the board. |
-| Hidden information | Players only see tiles they have discovered. Treasure and mine positions are never sent to the screen or the controllers. |
+| Hidden information | Unscanned tiles are sent to the screen as empty. A scanned tile shows its content (treasure, freeze mine or point mine) or, if it has none, the number of mines around it. |
 
-Each tile stores its hidden content, a *discovered* flag, the number of mines in the 8 surrounding tiles (0–8) and a *hole* flag.
+Each tile stores its hidden content and a *discovered* flag. A discovered tile without content also stores the number of mines in its 8 surrounding tiles (0–8). A hole is a separate tile value.
 
 ## Actions
 
 | Action | Effect | Cooldown *(tunable)* |
 | ------ | ------ | -------------------- |
 | Move | Moves one tile. Players may share a tile. A player cannot enter a hole or leave the board. | 200 ms |
-| Scan | The screen shows the number of mines (freeze + point) around the scanned tile. The Oplà lights **red** if the scanned tile itself holds a mine. | 1 s |
+| Scan | Scans the tile **in front of** the player (one step in the facing direction). The tile is marked as discovered and the screen shows its content or the number of mines (freeze + point) in its 8 surrounding tiles. The Oplà lights **red** if the scanned tile itself holds a mine. Scanning while facing the board edge is rejected. | 1 s |
 | Dig | Digs up the tile's content (see Scoring). The content disappears. | 1 s, also on an empty tile |
+
+**Scan details:** the scanned tile's own mine is not part of the count. A tile with content shows the content instead of a count; the Oplà still gets the count. A scanned tile keeps its count until it is scanned again, so the number can be out of date after a nearby mine is dug. Scanning a hole shows nothing new. Everyone watches the same screen, so a scanned treasure or mine is visible to all players.
 
 A frozen player cannot move, scan or dig. If two players dig the same tile at the same moment, the server processes them in order: the first one gets the content, the second finds an empty tile.
 
@@ -64,7 +66,7 @@ A solo round always ends with the player in rank 1. It ends when the single trea
 
 | Event | Oplà | Screen |
 | ----- | ---- | ------ |
-| Scan: a mine is on the tile | Red | Number of mines around the tile |
+| Scan | Red if a mine is on the tile in front | The scanned tile's content, or the number of mines around it |
 | Treasure dug up | Yellow / orange | Score updated, the treasure disappears |
 | Freeze mine dug up | Blue while frozen | Frozen message, a hole for about 5 s |
 | Point mine dug up | Purple | Minus-points message, a hole for about 5 s |
@@ -81,7 +83,7 @@ A solo round always ends with the player in rank 1. It ends when the single trea
 - Finished rounds are saved, **including solo rounds**. Aborted rounds are not saved.
 - Competitive leaderboards use rounds with `PlayerCount >= 2`. Personal bests (for example fewest steps to a treasure) include solo rounds.
 - Per player per round: score, placement, treasures found, freeze mines hit, point mines hit, mines avoided, total steps and fewest steps to a treasure.
-- **Mines avoided** counts distinct tiles where the player scanned a mine and never dug it.
+- **Mines avoided** counts distinct tiles where the player scanned a mine (the tile in front of them) and never dug it.
 
 See [database.md](database.md) for the schema.
 
@@ -89,14 +91,13 @@ See [database.md](database.md) for the schema.
 
 | Done | Not yet |
 | ---- | ------- |
-| Board generation, treasure formula, safe radius, start positions | Move, scan and dig actions |
+| Board generation, treasure formula, safe radius, start positions | Dig action |
 | Lobby, joining and reconnecting | Scoring (including the first-treasure bonus), freezing and holes |
 | Starting a round from the lobby | Round timer, winner and tie-break |
 | Database schema and migrations | Saving round results, player names |
+| Move (turn, then step) and scan (tile in front, red light, count) | |
 
 ## Open questions
 
-1. **Treasure hint.** Scan only reveals mines, and treasures are under 1% of the tiles. Without a hint ("a treasure within 3 tiles") the game is mostly luck.
-2. **Scan semantics.** Confirm that the red light means "this tile is a mine", and that the number is for the 8 surrounding tiles.
-3. **Movement model.** `Spawn` stores a facing direction. Decide whether players turn and then step, or move directly in four directions.
-4. **Cooldown values** (move, scan, dig) and the idle timeout need a playtest.
+1. **Treasure hint.** Scan only shows a treasure when it is on the scanned tile, and treasures are under 1% of the tiles. Without a hint ("a treasure within 3 tiles") the game is mostly luck.
+2. **Cooldown values** (move, scan, dig) and the idle timeout need a playtest.
