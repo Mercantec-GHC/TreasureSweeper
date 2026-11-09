@@ -185,7 +185,7 @@ else
     {
         if (gameDisplay == null || game == null || !game.Players.Any() || game.Board == null) return;
         
-        await gameDisplay.LoadMap(game.Board, game.Players);
+        await gameDisplay.LoadMap(game);
         
     }
 

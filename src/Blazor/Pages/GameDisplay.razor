@@ -15,8 +15,25 @@
     int mapSize = 0;
     int tileSize = 32;
 
-    public async Task LoadMap(Board map, IEnumerable<Player> players)
+    public async Task LoadMap(Game game)
     {
+        List<PlayerInfo> playerInfoList = new List<PlayerInfo>();
+
+        foreach (var player in game.Players)
+        {
+            PlayerState? playerState = game.StateOf(player.Id);
+            if (playerState == null) continue;
+
+            playerInfoList.Add(new PlayerInfo
+            {
+                Color = player.Color,
+                Symbol = player.Symbol,
+                X = playerState.Position.X,
+                Y = playerState.Position.Y
+            });
+        }
+
+        Board map = game.Board!;
         byte[][] tiles = new byte[map.Size][];
 
         for (int x = 0; x < map.Size; x++)
@@ -44,7 +61,15 @@
             "gameRenderer.drawMap",
             gameCanvas,
             tiles,
-            players
+            playerInfoList
         );
+    }
+
+    public class PlayerInfo
+    {
+        public string Color { get; set; } = string.Empty;
+        public string Symbol { get; set; } = string.Empty;
+        public int X { get; set; }
+        public int Y { get; set; }
     }
 }
