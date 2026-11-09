@@ -39,7 +39,7 @@ Request:
 | `move` | ignored | One step forward in the facing direction |
 | `rotate` | `LEFT` / `RIGHT` | Turn 90° |
 | `scan` | – | Scan the tile in front of the player (see [Scan](#scan)) |
-| `dig` | – | Dig the tile the player stands on |
+| `dig` | – | Dig the tile in front of the player |
 
 Movement is relative to facing, so the controller needs only three movement buttons (forward, rotate left, rotate right). Values are case-insensitive.
 
