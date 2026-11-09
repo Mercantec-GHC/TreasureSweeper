@@ -1,5 +1,87 @@
 ﻿@page "/"
+@using Shared.Leaderboard
+@using Infrastructure.Persistence
+@inject ILeaderboardQueries Queries
 
-<PageTitle>Home</PageTitle>
+<PageTitle>Leaderboard</PageTitle>
 
-<h1>Hello, world!</h1>
+<h1>Leaderboard</h1>
+<button class="btn btn-sm btn-outline-secondary mb-3" @onclick="Load">Refresh</button>
+
+@if (error is not null)
+{
+    <div class="alert alert-warning">@error</div>
+}
+else if (scores is null)
+{
+    <p>Loading…</p>
+}
+else
+{
+    <h2 class="h5">Top scores</h2>
+    <table class="table table-striped" style="max-width: 640px;">
+        <thead><tr><th>#</th><th>Player</th><th class="text-end">Score</th><th>When</th></tr></thead>
+        <tbody>
+            @for (var i = 0; i < scores.Count; i++)
+            {
+                <tr>
+                    <td>@(i + 1)</td>
+                    <td>@scores[i].PlayerName</td>
+                    <td class="text-end">@scores[i].Score</td>
+                    <td>@scores[i].AchievedAt.LocalDateTime.ToString("g")</td>
+                </tr>
+            }
+            @if (scores.Count == 0)
+            {
+                <tr><td colspan="4" class="text-muted">No rounds yet.</td></tr>
+            }
+        </tbody>
+    </table>
+
+    <h2 class="h5">Most treasures</h2>
+    <table class="table table-striped" style="max-width: 420px;">
+        <thead><tr><th>#</th><th>Player</th><th class="text-end">Treasures</th></tr></thead>
+        <tbody>
+            @for (var i = 0; i < treasures!.Count; i++)
+            {
+                <tr><td>@(i + 1)</td><td>@treasures[i].PlayerName</td><td class="text-end">@treasures[i].Value</td></tr>
+            }
+        </tbody>
+    </table>
+
+    <h2 class="h5">Fewest steps to a treasure</h2>
+    <table class="table table-striped" style="max-width: 420px;">
+        <thead><tr><th>#</th><th>Player</th><th class="text-end">Steps</th></tr></thead>
+        <tbody>
+            @for (var i = 0; i < steps!.Count; i++)
+            {
+                <tr><td>@(i + 1)</td><td>@steps[i].PlayerName</td><td class="text-end">@steps[i].Value</td></tr>
+            }
+        </tbody>
+    </table>
+}
+
+@code {
+    IReadOnlyList<LeaderboardEntryResponse>? scores;
+    IReadOnlyList<PlayerStatResponse>? treasures;
+    IReadOnlyList<PlayerStatResponse>? steps;
+    string? error;
+
+    protected override async Task OnInitializedAsync() => await Load();
+
+    private async Task Load()
+    {
+        try
+        {
+            scores = await Queries.GetTopScoresAsync(10);
+            treasures = await Queries.GetMostTreasuresAsync(10);
+            steps = await Queries.GetFewestStepsToTreasureAsync(10);
+            error = null;
+        }
+        catch
+        {
+            error = "Leaderboard unavailable — is the database running?";
+            scores = []; treasures = []; steps = [];
+        }
+    }
+}

@@ -1,3 +1,5 @@
+using Domain.Boards;
+
 namespace Domain.Games;
 
 public enum GameError
@@ -7,14 +9,20 @@ public enum GameError
     NoPlayers,
     RoundNotWaiting,
     RoundNotPlaying,
+    Frozen,
+    OnCooldown,
+    Blocked,
 }
 
-public sealed record GameResult(GameError? Error)
+public sealed record GameResult(GameError? Error, ScanResult? Scan = null)
 {
     public bool Success => Error is null;
     public static GameResult Ok { get; } = new((GameError?)null);
     public static GameResult Fail(GameError error) => new(error);
+    public static GameResult Scanned(ScanResult scan) => new(null, scan);
 }
+
+public sealed record ScanResult(Position Tile, int AdjacentMines, bool OnMine);
 
 public sealed record JoinResult(Player? Player, bool Reconnected, GameError? Error)
 {

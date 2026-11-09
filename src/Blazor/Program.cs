@@ -2,6 +2,8 @@ using API.Endpoints;
 using Blazor;
 using Domain.Games;
 using Infrastructure;
+using Infrastructure.Persistence;
+using Infrastructure.Persistence.Interfaces;
 using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -29,8 +31,21 @@ if (!app.Environment.IsDevelopment())
 }
 else
 {
-    app.MapOpenApi();
-    app.UseSwaggerUI(o => o.SwaggerEndpoint("/openapi/v1.json", "TreasureSweeper API"));
+	app.MapOpenApi();
+	app.UseSwaggerUI(o => o.SwaggerEndpoint("/openapi/v1.json", "TreasureSweeper API"));
+
+	// #38 - dev-only sample data so the UI and API have something to show.
+	try
+	{
+		await using var scope = app.Services.CreateAsyncScope();
+		var store = scope.ServiceProvider.GetRequiredService<IRoundResultStore>();
+		var db = scope.ServiceProvider.GetRequiredService<TreasureSweeperDbContext>();
+		await DatabaseSeeder.SeedAsync(store, db);
+	}
+	catch (Exception ex)
+	{
+		app.Logger.LogWarning(ex, "Skipped dev seeding (is the database migrated and running?)");
+	}
 }
 
 // No UseHttpsRedirection: the Opla controllers call plain http on the LAN and cannot follow a redirect.
@@ -40,6 +55,7 @@ app.MapStaticAssets();
 app.MapRazorComponents<App>().AddInteractiveServerRenderMode();
 app.MapGameEndpoints();
 app.MapControllerEndpoints();
+app.MapLeaderboardEndpoints();
 app.MapHealthChecks("/health");
 
 app.Run();
