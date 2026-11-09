@@ -44,7 +44,7 @@ A frozen player cannot move, scan or dig. If two players dig the same tile at th
 
 A score may go below 0.
 
-**First-treasure bonus:** the first treasure dug up in the round is worth 100 for whoever finds it. Every other treasure is worth 90 for whoever finds it. The extra 10 points exist to reduce ties: of two players with the same number of treasures, the one who found the round's first treasure scores higher. "First" is decided by the order in which the server processes the digs.
+**First-treasure bonus:** the first treasure dug up in the round is worth 1000 for whoever finds it. Every other treasure is worth 100 less than the last. The extra 10 points exist to reduce ties: of two players with the same number of treasures, the one who found the round's first treasure scores higher. "First" is decided by the order in which the server processes the digs.
 
 **Holes:** after a mine is dug up, the tile is a hole for about 5 seconds. Nobody can enter it. The player who dug it stays on the tile and may leave. After 5 seconds it becomes an ordinary empty tile.
 
