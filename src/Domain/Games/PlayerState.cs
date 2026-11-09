@@ -8,6 +8,8 @@ public sealed class PlayerState(Position position, Direction facing)
     public Direction Facing { get; internal set; } = facing;
     public int Score { get; internal set; }
     public int TreasuresFound { get; internal set; }
+    public int PointMinesHit { get; internal set; }
+    public int FreezeMinesHit { get; internal set; }
     public DateTimeOffset NextMoveAt { get; internal set; }
     public DateTimeOffset NextScanAt { get; internal set; }
     public DateTimeOffset NextDigAt { get; internal set; }
