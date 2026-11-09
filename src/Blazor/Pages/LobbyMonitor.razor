@@ -35,6 +35,7 @@
             <li class="mb-1">
                 <span style="display:inline-block;width:1em;height:1em;border-radius:50%;background:@p.Color;vertical-align:middle;"></span>
                 <strong>#@p.Number</strong> @p.Name <span style="color:@p.Color">@p.Symbol</span>
+                <code class="ms-2 text-muted">@(p.DeviceId ?? "browser/sim")</code>
             </li>
         }
         @if (players.Count == 0)
