@@ -97,7 +97,7 @@ else
     {
         if (game == null || playerJoined) return;
 
-        var result = game.Join(pinInput, null);
+        var result = game.Join(inputName, null);
         if (result.Success) 
         { 
             player = result.Player;
@@ -144,9 +144,9 @@ else
             message = "Please enter a valid PIN.";
             return;
         }
-        if (pinInput.Length != 4)
+        if (pinInput.Length < 4 || pinInput.Length > 8)
         {
-            message = "PIN must be 4 characters long.";
+            message = "PIN must contain 4 to 8 digits.";
             return;
         }
 
