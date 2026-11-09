@@ -26,10 +26,15 @@ public sealed record ControllerJoinResponse(
 
     public static ControllerJoinResponse Scanned(bool onMine, int count = 0) =>
         new(true, Light: onMine ? ControllerLight.Red : ControllerLight.Off, Count: count);
+
+    public static ControllerJoinResponse Dug(string light) => new(true, Light: light);
 }
 
 public static class ControllerLight
 {
     public const string Off = "off";
     public const string Red = "red";
+    public const string Yellow = "yellow";
+    public const string Purple = "purple";
+    public const string Blue = "blue";
 }
