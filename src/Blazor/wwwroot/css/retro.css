@@ -99,3 +99,10 @@
     .retro h1 { font-size: 1rem; }
     .retro h2 { font-size: .8rem; }
 }
+
+.retro .btn { font-family: 'Press Start 2P', monospace; font-size: .7rem; padding: .7rem 1rem; border: 3px solid var(--neon); border-radius: 0; background: transparent; color: var(--neon); text-transform: uppercase; margin: .25rem .25rem .25rem 0; }
+.retro .btn:hover:not(:disabled) { background: var(--neon); color: var(--bg); }
+.retro .btn:disabled { opacity: .4; }
+.retro input { background: #0c0720; color: var(--text); border: 2px solid var(--cyan); border-radius: 0; padding: .45rem .6rem; font: inherit; }
+.retro .alert { background: transparent; border: 2px dashed var(--pink); color: var(--text); border-radius: 0; margin-top: 1rem; }
+.retro .text-muted, .retro .muted { color: var(--muted) !important; }
