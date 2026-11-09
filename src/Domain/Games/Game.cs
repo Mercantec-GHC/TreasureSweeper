@@ -10,6 +10,8 @@ public sealed class Game(string pin, TimeProvider? time = null)
     public static readonly TimeSpan SCAN_COOLDOWN = TimeSpan.FromSeconds(1);
     public static readonly TimeSpan DIG_COOLDOWN = TimeSpan.FromSeconds(1);
     public const int TREASURE_START_POINTS = 1000;
+    public const int POINT_MINE_PENALTY = 25;
+    public static readonly TimeSpan FREEZE_DURATION = TimeSpan.FromSeconds(5);
 
     private readonly TimeProvider _time = time ?? TimeProvider.System;
     private readonly Dictionary<string, Player> _players = [];
@@ -127,7 +129,13 @@ public sealed class Game(string pin, TimeProvider? time = null)
 
         state.Position = target;
         state.NextMoveAt = now + MOVE_COOLDOWN;
-        return GameResult.Ok;
+
+        var content = Board[target];
+        var mine = Board[target].HiddenContent();
+        if (!mine.IsMine() || content.IsDiscovered()) return GameResult.Ok;
+
+        var points = TriggerMine(state, target, mine, now);
+        return GameResult.SteppedOnMine(new MineHit(target, mine, points));
     }
 
     private static GameResult Rotate(PlayerState state, Direction turn)
@@ -158,7 +166,24 @@ public sealed class Game(string pin, TimeProvider? time = null)
         if (now < state.NextDigAt) return GameResult.Fail(GameError.OnCooldown);
         state.NextDigAt = now + DIG_COOLDOWN;
 
-        var found = Board[tile].HiddenContent();
+        var content = Board[tile];
+
+        if (content.IsHole())
+        {
+            Board.Set(tile, TileContent.Empty);
+            return GameResult.Dug(new DigResult(tile, TileContent.Hole, 0));
+        }
+
+        var found = content.HiddenContent();
+
+        if (found.IsMine())
+        {
+            if (content.IsDiscovered())
+                return GameResult.Dug(new DigResult(tile, found, 0));
+
+            var penalty = TriggerMine(state, tile, found, now);
+            return GameResult.Dug(new DigResult(tile, found, penalty, Triggered: true));
+        }
 
         if (found != TileContent.Treasure)
             return GameResult.Dug(new DigResult(tile, found, 0));
@@ -170,6 +195,25 @@ public sealed class Game(string pin, TimeProvider? time = null)
         Board.Set(tile, TileContent.Hole);
 
         return GameResult.Dug(new DigResult(tile, found, points));
+    }
+
+    private int TriggerMine(PlayerState state, Position tile, TileContent mine, DateTimeOffset now)
+    {
+        var points = 0;
+        if (mine == TileContent.PointMine)
+        {
+            points = -POINT_MINE_PENALTY;
+            state.Score += points;
+            state.PointMinesHit++;
+        }
+        else
+        {
+            state.FrozenUntil = now + FREEZE_DURATION;
+            state.FreezeMinesHit++;
+        }
+
+        Board!.Set(tile, TileContent.Hole);
+        return points;
     }
 
     public GameResult End() {
