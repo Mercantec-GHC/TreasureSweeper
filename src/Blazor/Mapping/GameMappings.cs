@@ -21,7 +21,8 @@ internal static class GameMappings
         new(player.Id, player.Number, player.Name, player.Color, player.Symbol,
             state is null ? null : new PositionResponse(state.Position.X, state.Position.Y),
             state?.Facing.ToResponse(),
-            state is null || board is null ? null : board.ViewFor(state));
+            state is null || board is null ? null : board.ViewFor(state),
+            state?.Score);
 
     public static IReadOnlyList<int?> ViewFor(this DomainBoards.Board board, DomainGames.PlayerState viewer)
     {
@@ -42,12 +43,12 @@ internal static class GameMappings
     private static int Visible(DomainBoards.TileContent t) =>
         t.IsDiscovered() ? (int)t : (int)t & HOLE_BIT;
 
-    public static Direction ToResponse(this Domain.Boards.Direction direction) => direction switch
+    public static Direction ToResponse(this DomainBoards.Direction direction) => direction switch
     {
-        Domain.Boards.Direction.Up    => Direction.Up,
-        Domain.Boards.Direction.Right => Direction.Right,
-        Domain.Boards.Direction.Down  => Direction.Down,
-        Domain.Boards.Direction.Left  => Direction.Left,
+        DomainBoards.Direction.Up    => Direction.Up,
+        DomainBoards.Direction.Right => Direction.Right,
+        DomainBoards.Direction.Down  => Direction.Down,
+        DomainBoards.Direction.Left  => Direction.Left,
         _ => throw new ArgumentOutOfRangeException(nameof(direction), direction, null),
     };
 
