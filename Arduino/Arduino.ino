@@ -3,6 +3,7 @@
 #include <WiFiNINA.h>
 #include "config.h"
 #include <ArduinoJson.h>
+#include <WiFiSSLClient.h>
 
 MKRIoTCarrier carrier;
 uint32_t lastRepeat = 0;
@@ -15,17 +16,12 @@ uint8_t rawMask = 0;
 uint8_t keys = 0;
 uint32_t lastInputPoll = 0;
 
-// ligts response
-uint8_t ledR = 0;
-uint8_t ledG = 0;
-uint8_t ledB = 0;
-uint32_t ledStartTime = 0;
-const uint32_t LED_DURATION = 200;
-bool ledActive = false;
-bool connected = false;
+bool gameStarted = false;
 
 ControllerClient transport;
 String playerId;
+int playerNumber = 0;
+String playerColorHex = "";
 String deviceId;
 String lastError;
 bool ready = false;
@@ -93,6 +89,7 @@ void identity(JsonDocument &request) {
   request["deviceId"] = deviceId;
   if (playerId.length()) request["playerId"] = playerId;
   if (GAME_PIN[0]) request["pin"] = GAME_PIN;
+  Serial.println(playerId);
 }
 
 void forgetSession(){
@@ -117,6 +114,9 @@ bool requestJson(const char *endpoint, JsonDocument *request, JsonDocument &repl
     String payload;
     if (request) serializeJson(*request, payload);
     String packet = request ? "POST " : "GET ";
+    Serial.println(packet);
+    Serial.println(endpoint);
+    Serial.println(payload);
   packet += String(GAME_PATH) + endpoint + " HTTP/1.1\r\nHost: " + SERVER_HOST;
   packet += "\r\nAccept: application/json\r\nAccept-Encoding: identity";
   packet += "\r\nConnection: keep-alive\r\n";
@@ -139,7 +139,7 @@ bool requestJson(const char *endpoint, JsonDocument *request, JsonDocument &repl
     lastHttpStatus = response.status;
     ControllerBodyStream bodyStream(transport, response.chunked, response.length);
     JsonDocument filter;
-    const char *fields[] = {"ok", "playerId", "error", "message", "side", "color", "event"};
+    const char *fields[] = {"ok", "playerId", "error", "message", "side", "number", "color"};
     for (const char *field : fields) filter[field] = true;
     DeserializationError error = deserializeJson(
       reply, bodyStream, DeserializationOption::Filter(filter));
@@ -158,14 +158,6 @@ bool requestJson(const char *endpoint, JsonDocument *request, JsonDocument &repl
     Serial.println(lastError);
     return false;
   }
-  if (reply["color"].is<JsonObject>()) {
-  ledR = reply["color"]["r"] | 0;
-  ledG = reply["color"]["g"] | 0;
-  ledB = reply["color"]["b"] | 0;
-
-  setAllLeds(ledR, ledG, ledB);
-  }
-
   if (lastHttpStatus >= 200 && lastHttpStatus < 300) return true;
   lastError = reply["error"] | (reply["message"] | "Forespoergsel afvist");
   Serial.println(String("HTTP ") + lastHttpStatus + ": " + lastError);
@@ -191,6 +183,35 @@ bool postController(const char *endpoint, JsonDocument &request, JsonDocument & 
   return true;
 }
 
+uint16_t parseColor(const String &hex){
+  if (hex.length() < 7 || hex[0] != '#') return 0xFFFF;         // white fallback
+  long v = strtol(hex.c_str() + 1, nullptr, 16);
+  uint8_t r = (v >> 16) & 0xFF, g = (v >> 8) & 0xFF, b = v & 0xFF;
+  return carrier.display.color565(r, g, b);                     // hex -> RGB565
+}
+
+void showIdentity(){
+  carrier.display.setRotation(180);
+  carrier.display.fillScreen(parseColor(playerColorHex));
+  carrier.display.setTextColor(0x0000);                         // black
+  carrier.display.setTextSize(2);
+  carrier.display.setCursor(80, 70);
+  carrier.display.print("Player");
+  carrier.display.setTextSize(8);
+  carrier.display.setCursor(100, 100);
+  carrier.display.print(playerNumber);
+}
+
+void setAllLeds(uint8_t r, uint8_t g, uint8_t b) {
+  carrier.leds.clear();
+
+  for (int i = 0; i < 5; i++) {
+    carrier.leds.setPixelColor(i, r, g, b);
+  }
+
+  carrier.leds.show();
+}
+
 void joinGame(){
   lastJoinAttempt = millis();
   JsonDocument request, reply;
@@ -203,7 +224,13 @@ void joinGame(){
     return;
   }
   playerId = assignedId;
+  playerNumber   = reply["number"] | 0;
+  playerColorHex = reply["color"] | "#FFFFFF";
+  showIdentity();
+  Serial.print("Number "); Serial.println(playerNumber);
+  gameStarted = false;
   ready = true;
+  setAllLeds(0, 255, 0);
   releaseBeforePlay = true;
   resetControls();
   lastHeartbeat = millis();
@@ -223,6 +250,7 @@ void heartbeat(){
   }
   ready = true;
   if (!wasReady){
+    setAllLeds(0, 0, 0);
     releaseBeforePlay = true;
     resetControls();
     Serial.println("Forbindelsen er tilbage");
@@ -243,23 +271,29 @@ bool sendAction(const char *action, const char *direction = nullptr){
 // 03 = rotate right
 // 04 = dig
 void handleControls(uint8_t down, uint8_t pressed, uint8_t released){
-  if (released & (k0 | k1 | k2 | k3)) repeatedKey = -1;
+
+    if (!gameStarted && pressed != 0) {
+    gameStarted = true;
+    setAllLeds(0, 0, 0);
+  }
+
+  if (released & (k1 | k2 | k3)) repeatedKey = -1;
   if (pressed & k4) {sendAction("dig"); return; }
   if (pressed & k0) {sendAction("scan"); return; }
   int key = -1;
   const char *direction = nullptr;
   const char *action = nullptr;
-  if ((down & (k0 | k2)) == k2) {key = 2; direction = "UP"; action = "move";}
+  if ((down & (k2)) == k2) {key = 2; direction = "UP"; action = "move";}
   // else if ((down & (k0 | k2)) == k0) {key = 0; direction = "DOWN";}
   else if ((down & (k1 | k3)) == k1) {key = 1; direction = "LEFT"; action = "rotate";}
   else if ((down & (k1 | k3)) == k3) {key = 3; direction = "RIGHT"; action = "rotate";}
    if (repeatKey(key) && action != nullptr) {
     sendAction(action, direction);
   }
-Serial.println("action:");
-Serial.println(action ? action : "none");
-Serial.println("direction:");
-Serial.println(direction ? direction : "none");
+// Serial.println("action:");
+// Serial.println(action ? action : "none");
+// Serial.println("direction:");
+// Serial.println(direction ? direction : "none");
 }
 
 
@@ -289,86 +323,25 @@ bool repeatKey(int key){
   return false;
 }
 
-void setAllLeds(uint8_t r, uint8_t g, uint8_t b) {
-  carrier.leds.clear();
-
-  for (int i = 0; i < 5; i++) {
-    carrier.leds.setPixelColor(i, r, g, b);
-  }
-
-  carrier.leds.show();
-  ledStartTime = millis();
-  ledActive = true;
-}
-
-void updateLeds() {
-  if (ledActive && millis() - ledStartTime >= LED_DURATION) {
-    ledActive = false;
-  
-if (connected) {
-      setAllLeds(0, 255, 0);
-    } else {
-      carrier.leds.clear();
-      carrier.leds.show();
-    }
-  }
-}
-
-
-void gameWin (){
-
-}
-
-void gameConnect(){
-  connected = true;
-  setAllLeds(0, 255, 0);
-}
-
-void scannedNothing(){
-
-}
-
-void frozen(){
-
-}
-
-void scannedTreasure(){
-
-}
-
-void scannedBomb(){
-
-}
-
-// void updateLeds(unsigned long now ){
-//   carrier.leds.clear();
-//   carrier.leds.setPixelColor(0, 80, 50, 0);
-//   carrier.leds.show();
-// }
-
 void setup() {
-Serial.begin(115200);
-uint32_t started = millis();
-while (!Serial && millis() - started < 1500) {
+  Serial.begin(115200);
+  uint32_t started = millis();
+  while (!Serial && millis() - started < 1500) { ; }   // just wait briefly for Serial
 
   inputs.begin();
   transport.onPoll(readKeys);
   WiFi.setTimeout(3000);
   transport.setRetry(false);
   lastJoinAttempt = millis() - 5000;
-  
   lastWifiAttempt = millis() - 10000;
-  if (USE_CASE) carrier.withCase();
-  else carrier.noCase();
-  if (!carrier.begin()){
+  if (USE_CASE) carrier.withCase(); else carrier.noCase();
+  if (!carrier.begin()) {
     Serial.println("Carrier failed");
-    while (true){}
-  }
+    while (true) {}
   }
 }
 
 void loop() {
-  updateLeds();
 networkUsed = false;
 readKeys();
 if (!ensureWifi()) {inputs.clear(); delay(5); return;}
