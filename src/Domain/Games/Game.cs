@@ -196,8 +196,11 @@ public sealed class Game(string pin, TimeProvider? time = null)
             return GameResult.Dug(new DigResult(tile, found, penalty, Triggered: true));
         }
 
-        if (found != TileContent.Treasure)
+        if (found == TileContent.Empty)
+        {
+            Board.Set(tile, TileContent.Hole);
             return GameResult.Dug(new DigResult(tile, found, 0));
+        }
 
         var points = TREASURE_START_POINTS - _treasuresDug * 100;
         _treasuresDug++;

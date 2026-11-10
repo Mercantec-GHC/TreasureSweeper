@@ -59,8 +59,7 @@ Every action response (success or rejection) also includes **`facing`**: the pla
 #### Scan
 
 - **Scanned tile:** the tile directly in front of the player (one step in the facing direction). The player's own tile is not scanned.
-- **`light`:** `"yellow"` for a treasure, `"purple"` for an unscanned point mine, `"blue"` for an unscanned freeze mine, otherwise `"off"`. Always present on a successful dig. No `count` is sent.
-- A treasure gives points (see [game-rules.md](game-rules.md#scoring-tunable)) and leaves a hole. An unscanned mine goes off and leaves a hole. A scanned mine is harmless and stays. Digging a hole fills it. Digging an empty tile gives nothing.
+- **`light`:** `"red"` if the scanned tile contains a mine, otherwise `"off"`.
 - **`count`:** mines (freeze + point) in the 8 tiles around the scanned tile, `0`–`8`. The scanned tile itself is not counted. `0` is sent, not omitted.
 - The scanned tile is marked as discovered and its count appears on the screen.
 - **Cooldown:** 1 s per player (`Game.SCAN_COOLDOWN`), independent of move.
@@ -76,8 +75,8 @@ Every action response (success or rejection) also includes **`facing`**: the pla
 #### Dig
 
 - **Dug tile:** the tile directly in front of the player, the same tile scan uses. The player's own tile is not dug.
-- **`light`:** `"yellow"` if the tile held a treasure, otherwise `"off"`. Always present on a successful dig. No `count` is sent.
-- A treasure gives points (see [game-rules.md](game-rules.md#scoring-tunable)) and leaves a hole. Digging an empty tile, a hole or (for now) a mine gives nothing.
+- **`light`:** `"yellow"` for a treasure, `"purple"` for an unscanned point mine, `"blue"` for an unscanned freeze mine, otherwise `"off"`. Always present on a successful dig. No `count` is sent.
+- An empty tile gives no points and becomes a hole, including scanned tiles showing a mine count (`MineClose0` through `MineClose8`). A treasure gives points (see [game-rules.md](game-rules.md#scoring-tunable)) and leaves a hole. An unscanned mine goes off and leaves a hole. A scanned mine is harmless and stays. Digging a hole fills it.
 - **Cooldown:** 1 s per player (`Game.DIG_COOLDOWN`), also on an empty tile. Independent of move and scan.
 - **Rejections:** the same cases and messages as scan.
 
