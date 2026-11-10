@@ -16,6 +16,11 @@ uint8_t rawMask = 0;
 uint8_t keys = 0;
 uint32_t lastInputPoll = 0;
 
+bool gameStarted = false;
+bool freezeLightActive = false;
+uint32_t freezeLightStart = 0;
+const uint32_t FREEZE_LIGHT_DURATION = 5000;
+
 ControllerClient transport;
 String playerId;
 int playerNumber = 0;
@@ -170,6 +175,16 @@ bool requestJson(const char *endpoint, JsonDocument *request, JsonDocument &repl
 
 bool postController(const char *endpoint, JsonDocument &request, JsonDocument & reply){
   bool responseOk = requestJson(endpoint, &request, reply);
+
+  String serverMessage = reply["message"] | "";
+  if (!serverMessage.length()) {
+    serverMessage = reply["error"] | "";
+  }
+
+  if (serverMessage.indexOf("Player is frozen") >= 0) {
+    freezeMine();
+  }
+
   if (!responseOk || !reply["ok"].as<bool>()){
     if(lastHttpStatus == 403 || lastHttpStatus == 404) forgetSession();
     if (responseOk){
@@ -200,6 +215,32 @@ void showIdentity(){
   carrier.display.print(playerNumber);
 }
 
+void setAllLeds(uint8_t r, uint8_t g, uint8_t b) {
+  carrier.leds.clear();
+
+  for (int i = 0; i < 5; i++) {
+    carrier.leds.setPixelColor(i, r, g, b);
+  }
+
+  carrier.leds.show();
+}
+
+void freezeMine() {
+  setAllLeds(0, 0, 255);
+
+  freezeLightActive = true;
+  freezeLightStart = millis();
+}
+void updateFreezeLight() {
+  if (freezeLightActive &&
+      millis() - freezeLightStart >= FREEZE_LIGHT_DURATION) {
+
+    setAllLeds(0, 0, 0);
+    freezeLightActive = false;
+
+    Serial.println("Freeze light turned off");
+  }
+}
 void joinGame(){
   lastJoinAttempt = millis();
   JsonDocument request, reply;
@@ -216,7 +257,9 @@ void joinGame(){
   playerColorHex = reply["color"] | "#FFFFFF";
   showIdentity();
   Serial.print("Number "); Serial.println(playerNumber);
+  gameStarted = false;
   ready = true;
+  setAllLeds(0, 255, 0);
   releaseBeforePlay = true;
   resetControls();
   lastHeartbeat = millis();
@@ -236,6 +279,7 @@ void heartbeat(){
   }
   ready = true;
   if (!wasReady){
+    setAllLeds(0, 0, 0);
     releaseBeforePlay = true;
     resetControls();
     Serial.println("Forbindelsen er tilbage");
@@ -256,6 +300,12 @@ bool sendAction(const char *action, const char *direction = nullptr){
 // 03 = rotate right
 // 04 = dig
 void handleControls(uint8_t down, uint8_t pressed, uint8_t released){
+
+    if (!gameStarted && pressed != 0) {
+    gameStarted = true;
+    setAllLeds(0, 0, 0);
+  }
+
   if (released & (k1 | k2 | k3)) repeatedKey = -1;
   if (pressed & k4) {sendAction("dig"); return; }
   if (pressed & k0) {sendAction("scan"); return; }
@@ -269,10 +319,10 @@ void handleControls(uint8_t down, uint8_t pressed, uint8_t released){
    if (repeatKey(key) && action != nullptr) {
     sendAction(action, direction);
   }
-Serial.println("action:");
-Serial.println(action ? action : "none");
-Serial.println("direction:");
-Serial.println(direction ? direction : "none");
+// Serial.println("action:");
+// Serial.println(action ? action : "none");
+// Serial.println("direction:");
+// Serial.println(direction ? direction : "none");
 }
 
 
@@ -321,6 +371,7 @@ void setup() {
 }
 
 void loop() {
+updateFreezeLight();
 networkUsed = false;
 readKeys();
 if (!ensureWifi()) {inputs.clear(); delay(5); return;}
