@@ -50,11 +50,6 @@
             }
         }
 
-        mapSize = map.Size;
-
-        await InvokeAsync(StateHasChanged);
-        await Task.Yield();
-
         await JS.InvokeVoidAsync(
             "gameRenderer.drawMap",
             gameCanvas,

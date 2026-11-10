@@ -1,0 +1,149 @@
+.game-layout {
+    display: grid;
+    grid-template-columns: minmax(220px, 1fr) minmax(0, 3fr) minmax(220px, 1fr);
+    gap: 1rem;
+    align-items: start;
+}
+
+.game-column {
+    min-width: 0;
+}
+
+.initial-game,
+.lobby-game {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    gap: 15px;
+}
+
+.lobby-game h1,
+.lobby-game h2,
+.lobby-game p,
+.lobby-game ul {
+    margin: 0;
+}
+
+.lobby-game ul {
+    padding: 0;
+    list-style: none;
+    text-align: center;
+}
+
+.lobby-game > .btn-primary {
+    margin: 0;
+}
+
+.game-layout .join-game-group {
+    flex-direction: column;
+    gap: 15px;
+    align-items: center;
+}
+
+.join-game-group {
+    display: flex;
+    gap: 2rem;
+
+    .btn-primary {
+        margin: 0;
+    }
+}
+
+.stats-column {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.game-layout:fullscreen {
+    --stats-width: 220px;
+    grid-template-columns: minmax(0, 1fr) var(--stats-width);
+    gap: 10px;
+    align-items: stretch;
+    padding: 10px;
+    box-sizing: border-box;
+    background: #140c2e;
+    color: #e8e6ff;
+    overflow: hidden;
+}
+
+.game-layout:fullscreen .lobby-column {
+    display: none;
+}
+
+.game-layout:fullscreen .game-container {
+    height: 100%;
+    padding: 0;
+    justify-content: center;
+    box-sizing: border-box;
+}
+
+.game-layout:fullscreen .game-container ::deep br {
+    display: none;
+}
+
+.game-layout:fullscreen .game-container ::deep .game-canvas {
+    width: min(100vh - 20px, 100vw - var(--stats-width) - 30px);
+    height: min(100vh - 20px, 100vw - var(--stats-width) - 30px);
+}
+
+.game-layout:fullscreen .fullscreen-button {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    z-index: 10;
+    opacity: .6;
+}
+
+.game-layout:fullscreen .fullscreen-button:hover {
+    opacity: 1;
+}
+
+.game-layout:fullscreen .stats-column {
+    gap: .5rem;
+    overflow-y: auto;
+    max-height: 100%;
+}
+
+.game-layout:fullscreen .stat-box {
+    padding: .5rem;
+}
+
+.game-layout:fullscreen .countdown,
+.game-layout:fullscreen .treasures {
+    font-size: 1.5rem;
+}
+
+.stat-box {
+    border: 2px solid currentColor;
+    padding: 0.75rem;
+}
+
+.stat-box h3 {
+    font-size: 1rem;
+    margin-bottom: 0.5rem;
+}
+
+.countdown,
+.treasures {
+    font-size: 2rem;
+    font-weight: bold;
+    text-align: center;
+}
+
+.scoreboard {
+    padding-left: 1.25rem;
+    margin: 0;
+}
+
+.scoreboard li span.score {
+    float: right;
+    font-weight: bold;
+}
+
+@media (max-width: 900px) {
+    .game-layout {
+        grid-template-columns: 1fr;
+    }
+}
