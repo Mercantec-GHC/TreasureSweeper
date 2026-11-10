@@ -1,6 +1,9 @@
 ﻿@inject IJSRuntime JS
 @using Domain.Games;
+@using Blazor.Realtime;
 @inject GameRegistry gameRegistry
+@inject GamePublisherRegistry publishers
+@implements IDisposable
 
 @page "/game-screen"
 
@@ -67,9 +70,8 @@ else
 
     Game? game;
     Player? player;
-
+    IDisposable? subscription;
     string pinInput = "0000";
-
     bool playerJoined = false;
     bool hostedGame = false;
 
@@ -136,7 +138,7 @@ else
             return;
         }
         game = result.Game;
-        game!.Changed += async () => await OnGameChanged();
+        SubscribeToGame();
         hostedGame = true;
     }
 
@@ -161,7 +163,7 @@ else
         }
 
         game = joinableGame;
-        game!.Changed += async () => await OnGameChanged();
+        SubscribeToGame();
         hostedGame = false;
     }
 
@@ -204,14 +206,20 @@ else
 
     private async Task OnGameChanged()
     {
+        StateHasChanged();
         await LoadMap();
+    }
+
+    private void SubscribeToGame()
+    {
+        if (game == null) return;
+        subscription?.Dispose();
+        subscription = publishers.For(game).Subscribe(() => InvokeAsync(OnGameChanged));
     }
 
     public void Dispose()
     {
-        if (game != null)
-        {
-            game.Changed -= async () => await OnGameChanged();
-        }
+        subscription?.Dispose();
+        subscription = null;
     }
 }

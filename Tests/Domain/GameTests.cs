@@ -43,6 +43,21 @@ public class GameTests
     }
 
     [Fact]
+    public void Act_SuccessfulAction_RaisesChanged()
+    {
+        var game = new Game("1234");
+        var player = game.Join("P1", "DEV_1").Player!;
+        game.Start(new Random(1));
+        var changed = 0;
+        game.Changed += () => changed++;
+
+        var result = game.Act(player, new PlayerAction(ActionKind.Scan));
+
+        Assert.True(result.Success);
+        Assert.Equal(1, changed);
+    }
+
+    [Fact]
     public void Join_FirstPlayer_GetsNumberOneAndItsIdentity()
     {
         var game = new Game("1234");

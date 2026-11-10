@@ -1,5 +1,6 @@
 using API.Endpoints;
 using Blazor;
+using Blazor.Realtime;
 using Domain.Games;
 using Infrastructure;
 using Infrastructure.Persistence;
@@ -10,6 +11,7 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddRazorComponents().AddInteractiveServerComponents();
 builder.Services.AddSingleton<GameRegistry>();
+builder.Services.AddSingleton<GamePublisherRegistry>();
 builder.Services.AddInfrastructure();
 builder.Services.AddOpenApi();
 builder.Services.AddProblemDetails();
