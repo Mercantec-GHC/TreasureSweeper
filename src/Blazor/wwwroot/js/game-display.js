@@ -3,9 +3,9 @@
     previousMap: null,
     previousPlayers: [],
     images: {},
+    tintedPlayers: {},
 
     drawMap: function (canvas, map, players) {
-
         const ctx = canvas.getContext("2d");
         const tileSize = 32;
         const canvasSize = map.length * tileSize;
@@ -18,10 +18,16 @@
             canvas.height = canvasSize;
 
             this.previousMap = null;
+            this.previousPlayers = [];
         }
 
         ctx.imageSmoothingEnabled = false;
         const images = this.images;
+        const tintedPlayers = this.tintedPlayers;
+
+        if (!images[0]?.complete || !images[333]?.complete) {
+            return;
+        }
 
         function drawTileNumber(x, y) {
 
@@ -87,39 +93,46 @@
             drawTileNumber(x, y);
         }
 
-        function drawPlayer() {
-            for (const player of players) {
-                const pixelX = player.x * tileSize;
-                const pixelY = player.y * tileSize;
+        function drawPlayer(player) {
 
-                const playerImage = images[333];
+            const pixelX = player.x * tileSize;
+            const pixelY = player.y * tileSize;
 
-                // Create temporary canvas
+            const playerImage = images[333];
+
+            if (!playerImage?.complete || !playerImage.naturalWidth) {
+                return;
+            }
+
+            // Get cached tinted image
+            if (!tintedPlayers[player.color]) {
+
                 const tempCanvas = document.createElement("canvas");
+
                 tempCanvas.width = playerImage.width;
                 tempCanvas.height = playerImage.height;
 
                 const tempCtx = tempCanvas.getContext("2d");
 
-                // Draw original white PNG
                 tempCtx.drawImage(playerImage, 0, 0);
 
-                // Apply color only to non-transparent pixels
                 tempCtx.globalCompositeOperation = "source-in";
                 tempCtx.fillStyle = player.color;
+
                 tempCtx.fillRect(
                     0, 0,
                     tempCanvas.width,
                     tempCanvas.height
                 );
 
-                // Draw tinted player onto game canvas
-                ctx.drawImage(
-                    tempCanvas,
-                    pixelX, pixelY,
-                    tileSize, tileSize
-                );
+                tintedPlayers[player.color] = tempCanvas;
             }
+
+            ctx.drawImage(
+                tintedPlayers[player.color],
+                pixelX, pixelY,
+                tileSize, tileSize
+            );
         }
 
 
@@ -144,7 +157,7 @@
             // Subsequent draws: only changed tiles
             for (let x = 0; x < map.length; x++) {
                 for (let y = 0; y < map[x].length; y++) {
-                    if (map[x][y] !== this.previousMap[x][y]) {
+                    if (this.previousMap[x][y] !== map[x][y]) {
                         markDirty(x, y);
                     }
                 }
