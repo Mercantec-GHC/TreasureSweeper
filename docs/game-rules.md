@@ -24,29 +24,33 @@ Each tile stores its hidden content and a *discovered* flag. A discovered tile w
 
 | Action | Effect | Cooldown *(tunable)* |
 | ------ | ------ | -------------------- |
-| Move | Moves one tile. Players may share a tile. A player cannot enter a hole or leave the board. | 200 ms |
+| Move | Moves one tile. Players may share a tile. A player cannot enter a hole or leave the board. Stepping onto an unscanned mine sets it off (see Scoring), and the player is left standing in the new hole. A scanned mine is safe to walk over. | 200 ms |
 | Scan | Scans the tile **in front of** the player (one step in the facing direction). The tile is marked as discovered and the screen shows its content or the number of mines (freeze + point) in its 8 surrounding tiles. The Oplà lights **red** if the scanned tile itself holds a mine. Scanning while facing the board edge is rejected. | 1 s |
-| Dig | Digs up the tile's content (see Scoring). The content disappears. | 1 s, also on an empty tile |
+| Dig | Digs the tile **in front of** the player (see Scoring). A dug treasure or unscanned mine leaves a hole, a scanned mine stays, and a hole is filled. Digging while facing the board edge is rejected. | 1 s, also on an empty tile |
 
 **Scan details:** the scanned tile's own mine is not part of the count. A tile with content shows the content instead of a count; the Oplà still gets the count. A scanned tile keeps its count until it is scanned again, so the number can be out of date after a nearby mine is dug. Scanning a hole shows nothing new. Everyone watches the same screen, so a scanned treasure or mine is visible to all players.
 
-A frozen player cannot move, scan or dig. If two players dig the same tile at the same moment, the server processes them in order: the first one gets the content, the second finds an empty tile.
+A frozen player cannot move, scan or dig. A player standing in a hole may still leave it. If two players dig the same tile at the same moment, the server processes them in order: the first one gets the content, the second fills the hole it left.
 
 ## Scoring *(tunable)*
 
-| Dug up | Points | Extra effect | Oplà light |
-| ------ | ------ | ------------ | ---------- |
-| First treasure of the round | **+100** | The treasure disappears. Points are permanent and cannot be stolen. | Yellow / orange |
-| Every later treasure | **+90** | The treasure disappears. Points are permanent and cannot be stolen. | Yellow / orange |
+| Dug up or stepped on | Points | Extra effect | Oplà light |
+| -------------------- | ------ | ------------ | ---------- |
+| First treasure of the round | **+1000** | The treasure disappears and leaves a hole. Points are permanent and cannot be stolen. | Yellow / orange |
+| Every later treasure | **100 less than the previous one** (900, 800, …) | The treasure disappears and leaves a hole. Points are permanent and cannot be stolen. | Yellow / orange |
 | Point mine | **−25** | A hole appears. | Purple |
 | Freeze mine | 0 | The player is frozen for **5 seconds**. A hole appears. | Blue (while frozen) |
+| Scanned mine | 0 | Nothing. The mine stays. | — |
 | Empty tile | 0 | None. | — |
+| Hole (dig only) | 0 | The hole is filled. | — |
+
+Treasures are only collected by digging. Stepping onto a treasure does nothing. Digging or stepping onto an unscanned mine sets it off. A scanned mine is harmless and stays on the board; it cannot be removed.
 
 A score may go below 0.
 
-**First-treasure bonus:** the first treasure dug up in the round is worth 100 for whoever finds it. Every other treasure is worth 90 for whoever finds it. The extra 10 points exist to reduce ties: of two players with the same number of treasures, the one who found the round's first treasure scores higher. "First" is decided by the order in which the server processes the digs.
+**Falling treasure value:** the first treasure dug up in the round is worth 1000, and each later treasure is worth 100 less than the one before (at most 7 treasures, so never below 400). The count is for the whole round, not per player. Early finds are worth more, which also reduces ties: of two players with the same number of treasures, the one who found theirs first scores higher. "First" is decided by the order in which the server processes the digs.
 
-**Holes:** after a mine is dug up, the tile is a hole for about 5 seconds. Nobody can enter it. The player who dug it stays on the tile and may leave. After 5 seconds it becomes an ordinary empty tile.
+**Holes:** digging up a treasure, or digging or stepping onto an unscanned mine, leaves a hole. Holes stay until someone fills them. Nobody can enter a hole, but a player standing in one may leave. Digging a hole fills it, and the tile becomes an ordinary empty tile.
 
 ## Round end and winner
 
@@ -58,9 +62,9 @@ The winner is decided by:
 3. then the fewest mines hit (freeze + point);
 4. if still tied, the placement is **shared**: tied players all get the same rank (for example 1, 1, 3) and all of them get the green light.
 
-The first-treasure bonus makes ties less likely, but they can still happen, for example between two players who both found only later treasures, so the rules above stay.
+Falling treasure values make ties less likely, but they can still happen, for example between two players with no treasures and the same mine penalties, so the rules above stay.
 
-A solo round always ends with the player in rank 1. It ends when the single treasure is found or when time runs out. The only treasure is the first one, so a solo score is 100 minus any mine penalties.
+A solo round always ends with the player in rank 1. It ends when the single treasure is found or when time runs out. The only treasure is the first one, so a solo score is 1000 minus any mine penalties.
 
 ## Feedback
 
@@ -68,9 +72,10 @@ A solo round always ends with the player in rank 1. It ends when the single trea
 | ----- | ---- | ------ |
 | Scan | Red if a mine is on the tile in front | The scanned tile's content, or the number of mines around it |
 | Treasure dug up | Yellow / orange | Score updated, the treasure disappears |
-| Freeze mine dug up | Blue while frozen | Frozen message, a hole for about 5 s |
-| Point mine dug up | Purple | Minus-points message, a hole for about 5 s |
+| Freeze mine dug up or stepped on | Blue while frozen | Frozen message, a hole |
+| Point mine dug up or stepped on | Purple | Minus-points message, a hole |
 | Won | Green | Winner and leaderboard |
+| Treasure dug up | Yellow / orange | Score updated, the treasure becomes a hole |
 
 ## Players and controllers
 
@@ -91,13 +96,16 @@ See [database.md](database.md) for the schema.
 
 | Done | Not yet |
 | ---- | ------- |
-| Board generation, treasure formula, safe radius, start positions | Dig action |
-| Lobby, joining and reconnecting | Scoring (including the first-treasure bonus), freezing and holes |
-| Starting a round from the lobby | Round timer, winner and tie-break |
-| Database schema and migrations | Saving round results, player names |
+| Board generation, treasure formula, safe radius, start positions | Round timer, winner and tie-break |
+| Lobby, joining and reconnecting | Saving round results, player names |
+| Starting a round from the lobby | Ending the round when the last treasure is dug |
+| Database schema and migrations | Controller LEDs in the firmware |
 | Move (turn, then step) and scan (tile in front, red light, count) | |
+| Dig (tile in front, treasure scoring, holes, yellow light, score on screen) | |
+| Mines (dig or step on unscanned: point penalty, freeze, purple/blue light, holes) | |
 
 ## Open questions
 
 1. **Treasure hint.** Scan only shows a treasure when it is on the scanned tile, and treasures are under 1% of the tiles. Without a hint ("a treasure within 3 tiles") the game is mostly luck.
 2. **Cooldown values** (move, scan, dig) and the idle timeout need a playtest.
+3. **Permanent holes.** With 64 mines, holes that stay until filled can cut off parts of the board. Playtest whether filling by digging is enough.

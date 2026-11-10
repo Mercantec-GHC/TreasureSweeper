@@ -12,11 +12,12 @@ public sealed record ControllerJoinResponse(
     [property: JsonIgnore(Condition =JsonIgnoreCondition.WhenWritingNull)] string? Error = null,
     [property: JsonIgnore(Condition =JsonIgnoreCondition.WhenWritingNull)] string? Message = null,
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? Light = null,
-    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] int? Count = null
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] int? Count = null,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? Color = null
 )
 {
-    public static ControllerJoinResponse Joined(string playerId, string name, int number, bool reconnected) =>
-        new(true, playerId, name, number, reconnected ? true : null);
+    public static ControllerJoinResponse Joined(string playerId, string name, int number, string color, bool reconnected) =>
+        new(true, playerId, name, number, reconnected ? true : null, Color: color);
 
     public static ControllerJoinResponse Fail(string error) => new(false, Error: error);
 
@@ -26,10 +27,15 @@ public sealed record ControllerJoinResponse(
 
     public static ControllerJoinResponse Scanned(bool onMine, int count = 0) =>
         new(true, Light: onMine ? ControllerLight.Red : ControllerLight.Off, Count: count);
+
+    public static ControllerJoinResponse Dug(string light) => new(true, Light: light);
 }
 
 public static class ControllerLight
 {
     public const string Off = "off";
     public const string Red = "red";
+    public const string Yellow = "yellow";
+    public const string Purple = "purple";
+    public const string Blue = "blue";
 }

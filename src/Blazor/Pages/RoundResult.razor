@@ -1,0 +1,67 @@
+@page "/round/{Id:guid}"
+@using Shared.Leaderboard
+@using Infrastructure.Persistence
+@inject ILeaderboardQueries Queries
+@inject NavigationManager Nav
+
+<PageTitle>Round result</PageTitle>
+
+<div class="retro">
+    @if (loading)
+    {
+        <p>Loading…</p>
+    }
+    else if (round is null)
+    {
+        <p class="muted">Round not found.</p>
+    }
+    else
+    {
+        var winner = round.Players.FirstOrDefault();
+        <h1>Round Over</h1>
+        <div class="banner">
+            @if (winner is not null)
+            {
+                <div class="crown">🏆</div>
+                <div class="name">@winner.PlayerName</div>
+                <div class="sub">@winner.Score points · @winner.TreasuresFound treasures</div>
+            }
+        </div>
+
+        <table>
+            <thead><tr><th>#</th><th>Player</th><th class="num">Points</th><th class="num">Treasures</th></tr></thead>
+            <tbody>
+                @foreach (var p in round.Players)
+                {
+                    <tr class="@(p.Placement == 1 ? "winner-row" : null)">
+                        <td>@p.Placement</td>
+                        <td>@p.PlayerName</td>
+                        <td class="num">@p.Score</td>
+                        <td class="num">@p.TreasuresFound</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+
+        <div class="actions">
+            <button class="retro-btn" @onclick="StartNewRound">Start new round</button>
+            <a class="retro-btn" href="history">History</a>
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter] public Guid Id { get; set; }
+    RoundResultResponse? round;
+    bool loading = true;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        loading = true;
+        try { round = await Queries.GetRoundAsync(Id); }
+        catch { round = null; }
+        loading = false;
+    }
+
+    private void StartNewRound() => Nav.NavigateTo("game-screen");
+}

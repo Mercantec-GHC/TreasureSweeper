@@ -10,8 +10,8 @@
 
 <PageTitle>Lobby monitor</PageTitle>
 
+<div class="retro">
 <h1>Lobby monitor</h1>
-<p>Live view of a backend game. Create a game with your own PIN, or view the PIN the simulator printed.</p>
 
 <div class="mb-3 d-flex gap-2" style="max-width:520px;">
     <input class="form-control" @bind="pinInput" placeholder="PIN (4-8 digits)" />
@@ -49,6 +49,7 @@
         <button class="btn btn-outline-secondary" @onclick="ResetRound">Reset to lobby</button>
     </div>
 }
+</div>
 
 @code {
     string pinInput = "";
