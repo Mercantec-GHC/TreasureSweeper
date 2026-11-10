@@ -28,7 +28,7 @@ public class ControllerActionApiTests(WebApplicationFactory<Program> factory) : 
         return (pin, playerId);
     }
 
-    private (Game Game, PlayerState State, Position InFront) PrepareScan(string pin, string playerId, TileContent inFront)
+    private (Game Game, PlayerState State, Position InFront) PrepareInFront(string pin, string playerId, TileContent inFront)
     {
         var game = GameFor(pin);
         var state = game.StateOf(playerId)!;
@@ -163,6 +163,7 @@ public class ControllerActionApiTests(WebApplicationFactory<Program> factory) : 
 
         Assert.False(player.TryGetProperty("position", out _));
         Assert.False(player.TryGetProperty("view", out _));
+        Assert.False(player.TryGetProperty("score", out _));
     }
 
     [Fact]
@@ -185,7 +186,7 @@ public class ControllerActionApiTests(WebApplicationFactory<Program> factory) : 
     public async Task Scan_SafeTile_ReturnsLightOffAndCount(int mines)
     {
         var (pin, playerId) = await StartedAsync();
-        var (game, state, tile) = PrepareScan(pin, playerId, TileContent.Empty);
+        var (game, state, tile) = PrepareInFront(pin, playerId, TileContent.Empty);
         foreach (var n in game.Board!.Neighbours(tile).Where(n => n != state.Position).Take(mines))
             game.Board.Set(n, TileContent.FreezeMine);
 
@@ -199,7 +200,6 @@ public class ControllerActionApiTests(WebApplicationFactory<Program> factory) : 
     [Theory]
     [InlineData("move", null)]
     [InlineData("rotate", "LEFT")]
-    [InlineData("dig", null)]
     public async Task NonScanActions_HaveNoLightOrCount(string action, string? direction)
     {
         var (pin, playerId) = await StartedAsync();
@@ -229,7 +229,7 @@ public class ControllerActionApiTests(WebApplicationFactory<Program> factory) : 
     public async Task Scan_ShowsCountInPlayerView()
     {
         var (pin, playerId) = await StartedAsync();
-        var (game, state, tile) = PrepareScan(pin, playerId, TileContent.Empty);
+        var (game, state, tile) = PrepareInFront(pin, playerId, TileContent.Empty);
         game.Board!.Set(game.Board.Neighbours(tile).First(n => n != state.Position), TileContent.PointMine);
 
         await ActionAsync(pin, playerId, "scan");
@@ -247,7 +247,7 @@ public class ControllerActionApiTests(WebApplicationFactory<Program> factory) : 
         var state = GameFor(pin).StateOf(playerId)!;
         state.Position = new(10, 10);
         state.Facing = Direction.Up;
-        var (game, _, _) = PrepareScan(pin, playerId, TileContent.PointMine); // (10,9)
+        var (game, _, _) = PrepareInFront(pin, playerId, TileContent.PointMine); // (10,9)
         game.Board!.Set(new(10, 8), TileContent.Treasure);                     // not scanned
         game.Board.Set(new(11, 8), TileContent.FreezeMine);                    // not scanned, next to (10,9)
 
@@ -272,5 +272,92 @@ public class ControllerActionApiTests(WebApplicationFactory<Program> factory) : 
         for (var row = 0; row < 5; row++)
         for (var col = 0; col < 5; col++)
             Assert.Equal(row < 2 || col < 2, tiles[row * 5 + col].ValueKind == JsonValueKind.Null);
+    }
+
+        [Fact]
+    public async Task Dig_TreasureInFront_ReturnsYellowLight()
+    {
+        var (pin, playerId) = await StartedAsync();
+        PrepareInFront(pin, playerId, TileContent.Treasure);
+
+        var body = await BodyAsync(await ActionAsync(pin, playerId, "dig"));
+
+        Assert.True(body.GetProperty("ok").GetBoolean());
+        Assert.Equal("yellow", body.GetProperty("light").GetString());
+        Assert.False(body.TryGetProperty("count", out _));
+    }
+
+    [Fact]
+    public async Task Dig_EmptyTile_ReturnsLightOff()
+    {
+        var (pin, playerId) = await StartedAsync();
+        PrepareInFront(pin, playerId, TileContent.Empty);
+
+        var body = await BodyAsync(await ActionAsync(pin, playerId, "dig"));
+
+        Assert.True(body.GetProperty("ok").GetBoolean());
+        Assert.Equal("off", body.GetProperty("light").GetString());
+    }
+
+    [Fact]
+    public async Task Dig_Treasure_UpdatesScoreInGameResponse()
+    {
+        var (pin, playerId) = await StartedAsync();
+        Assert.Equal(0, (await PlayerAsync(pin)).GetProperty("score").GetInt32());
+        PrepareInFront(pin, playerId, TileContent.Treasure);
+
+        await ActionAsync(pin, playerId, "dig");
+
+        Assert.Equal(Game.TREASURE_START_POINTS, (await PlayerAsync(pin)).GetProperty("score").GetInt32());
+    }
+
+    [Fact]
+    public async Task Move_OntoPointMine_ReturnsPurpleLight()
+    {
+        var (pin, playerId) = await StartedAsync();
+        PrepareInFront(pin, playerId, TileContent.PointMine);
+
+        var body = await BodyAsync(await ActionAsync(pin, playerId, "move"));
+
+        Assert.True(body.GetProperty("ok").GetBoolean());
+        Assert.Equal("purple", body.GetProperty("light").GetString());
+    }
+
+    [Fact]
+    public async Task Dig_UnscannedFreezeMine_ReturnsBlueLight()
+    {
+        var (pin, playerId) = await StartedAsync();
+        PrepareInFront(pin, playerId, TileContent.FreezeMine);
+
+        var body = await BodyAsync(await ActionAsync(pin, playerId, "dig"));
+
+        Assert.True(body.GetProperty("ok").GetBoolean());
+        Assert.Equal("blue", body.GetProperty("light").GetString());
+    }
+
+    [Fact]
+    public async Task Dig_ScannedMine_ReturnsLightOff()
+    {
+        var (pin, playerId) = await StartedAsync();
+        PrepareInFront(pin, playerId, TileContent.PointMine);
+        await ActionAsync(pin, playerId, "scan");
+
+        var body = await BodyAsync(await ActionAsync(pin, playerId, "dig"));
+
+        Assert.True(body.GetProperty("ok").GetBoolean());
+        Assert.Equal("off", body.GetProperty("light").GetString());
+    }
+
+    [Fact]
+    public async Task Move_WhileFrozen_IsRejectedWithoutLight()
+    {
+        var (pin, playerId) = await StartedAsync();
+        PrepareInFront(pin, playerId, TileContent.FreezeMine);
+        await ActionAsync(pin, playerId, "dig");
+
+        var body = await BodyAsync(await ActionAsync(pin, playerId, "rotate", "LEFT"));
+
+        Assert.False(body.GetProperty("ok").GetBoolean());
+        Assert.False(body.TryGetProperty("light", out _));
     }
 }
