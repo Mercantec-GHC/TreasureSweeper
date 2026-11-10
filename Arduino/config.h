@@ -2,7 +2,7 @@ const char WIFI_SSID[] = "MAGS-OLC";
 const char WIFI_PASS[] = "Merc1234!";
 const bool USE_CASE = false;
 const char PLAYER_NAME[] = "MikkelS";
-const char GAME_PIN[] = "9013";
+const char GAME_PIN[] = "2838";
 const char GAME_PATH[] = "";
 // Hostname only. WiFiSSLClient looks this up in DNS and cannot take a URL.
 const char SERVER_HOST[] = "treasuresweeper.mercantec.tech";

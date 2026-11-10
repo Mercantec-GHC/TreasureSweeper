@@ -17,6 +17,9 @@ uint8_t keys = 0;
 uint32_t lastInputPoll = 0;
 
 bool gameStarted = false;
+bool freezeLightActive = false;
+uint32_t freezeLightStart = 0;
+const uint32_t FREEZE_LIGHT_DURATION = 5000;
 
 ControllerClient transport;
 String playerId;
@@ -172,6 +175,16 @@ bool requestJson(const char *endpoint, JsonDocument *request, JsonDocument &repl
 
 bool postController(const char *endpoint, JsonDocument &request, JsonDocument & reply){
   bool responseOk = requestJson(endpoint, &request, reply);
+
+  String serverMessage = reply["message"] | "";
+  if (!serverMessage.length()) {
+    serverMessage = reply["error"] | "";
+  }
+
+  if (serverMessage.indexOf("Player is frozen") >= 0) {
+    freezeMine();
+  }
+
   if (!responseOk || !reply["ok"].as<bool>()){
     if(lastHttpStatus == 403 || lastHttpStatus == 404) forgetSession();
     if (responseOk){
@@ -212,6 +225,22 @@ void setAllLeds(uint8_t r, uint8_t g, uint8_t b) {
   carrier.leds.show();
 }
 
+void freezeMine() {
+  setAllLeds(0, 0, 255);
+
+  freezeLightActive = true;
+  freezeLightStart = millis();
+}
+void updateFreezeLight() {
+  if (freezeLightActive &&
+      millis() - freezeLightStart >= FREEZE_LIGHT_DURATION) {
+
+    setAllLeds(0, 0, 0);
+    freezeLightActive = false;
+
+    Serial.println("Freeze light turned off");
+  }
+}
 void joinGame(){
   lastJoinAttempt = millis();
   JsonDocument request, reply;
@@ -342,6 +371,7 @@ void setup() {
 }
 
 void loop() {
+updateFreezeLight();
 networkUsed = false;
 readKeys();
 if (!ensureWifi()) {inputs.clear(); delay(5); return;}
