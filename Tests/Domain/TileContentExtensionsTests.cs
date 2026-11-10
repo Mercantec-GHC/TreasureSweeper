@@ -33,13 +33,17 @@ public class TileContentExtensionsTests
 
     [Theory]
     [InlineData(TileContent.Treasure, TileContent.Empty)]
-    [InlineData(TileContent.DiscoveredTreasure, TileContent.Empty)]
     [InlineData(TileContent.FreezeMine, TileContent.Empty)]
-    [InlineData(TileContent.DiscoveredFreezeMine, TileContent.Empty)]
     [InlineData(TileContent.PointMine, TileContent.Empty)]
-    [InlineData(TileContent.DiscoveredPointMine, TileContent.Empty)]
-    public void Visible_HidesUndugTreasureAndMines(TileContent tile, TileContent expected) =>
+    public void Visible_HidesUndugTreasureAndUndiscoveredMines(TileContent tile, TileContent expected) =>
         Assert.Equal(expected, tile.Visible());
+
+    [Theory]
+    [InlineData(TileContent.DiscoveredTreasure)]
+    [InlineData(TileContent.DiscoveredFreezeMine)]
+    [InlineData(TileContent.DiscoveredPointMine)]
+    public void Visible_ShowsDiscoveredContent(TileContent tile) =>
+        Assert.Equal(tile, tile.Visible());
 
     [Theory]
     [InlineData(TileContent.Empty, TileContent.Empty)]

@@ -19,13 +19,13 @@ public static class TileContentExtensions
             ? (TileContent)(DISCOVERED_BIT | adjacentMines)
             : (TileContent)(DISCOVERED_BIT | (int)t.HiddenContent());
 
-    // What the shared game screen may show: dug tiles (holes), scan numbers and plain floor.
-    // Undug treasure or mine content is collapsed to Empty so it never reaches the browser.
+    // What the shared game screen may show: dug tiles (holes), scan numbers, discovered content and plain floor.
+    // Undiscovered treasure or mines are collapsed to Empty so they never reach the browser.
     public static TileContent Visible(this TileContent t)
     {
         if (t == TileContent.Outside) return TileContent.Outside;
         if (t.IsHole()) return TileContent.Hole;
-        if (t.IsDiscovered() && t.HiddenContent() == TileContent.Empty) return t;
+        if (t.IsDiscovered()) return t;
         return TileContent.Empty;
     }
 }
