@@ -1,6 +1,7 @@
 ﻿window.gameRenderer = {
 
     previousMap: null,
+    previousPlayers: [],
     images: {},
 
     drawMap: function (canvas, map, players) {
@@ -21,6 +22,44 @@
 
         ctx.imageSmoothingEnabled = false;
         const images = this.images;
+
+        function drawTileNumber(x, y) {
+
+            const tile = map[x][y];
+
+            // Only display numbers for MineClose tiles
+            if (tile >= 128 && tile <= 136) {
+
+                const number = tile - 128;
+
+                const pixelX = x * tileSize;
+                const pixelY = y * tileSize;
+
+                ctx.save();
+
+                ctx.font = "18px 'Press Start 2P'";
+                ctx.textAlign = "center";
+                ctx.textBaseline = "middle";
+
+                // Text outline for better visibility
+                ctx.lineWidth = 3;
+                ctx.strokeStyle = "black";
+                ctx.strokeText(
+                    number,
+                    pixelX + tileSize / 2,
+                    pixelY + tileSize / 2
+                );
+
+                ctx.fillStyle = "#ffffff";
+                ctx.fillText(
+                    number,
+                    pixelX + tileSize / 2,
+                    pixelY + tileSize / 2
+                );
+
+                ctx.restore();
+            }
+        }
 
         // Draw a single tile
         function drawTile(x, y) {
@@ -44,6 +83,8 @@
                     tileSize, tileSize
                 );
             }
+
+            drawTileNumber(x, y);
         }
 
         function drawPlayers() {
@@ -81,6 +122,14 @@
             }
         }
 
+
+        // Collect tiles that need redrawing
+        const dirtyTiles = new Set();
+
+        function markDirty(x, y) {
+            dirtyTiles.add(`${x},${y}`);
+        }
+
         // First draw: render everything
         if (!this.previousMap) {
 
@@ -96,21 +145,50 @@
             for (let x = 0; x < map.length; x++) {
                 for (let y = 0; y < map[x].length; y++) {
                     if (map[x][y] !== this.previousMap[x][y]) {
-                        drawTile(x, y);
+                        markDirty(x, y);
                     }
                 }
             }
         }
-        drawPlayers();
 
-        // Save current map state
-        this.previousMap = [...map];
+        // Mark previous player positions
+        for (const player of this.previousPlayers) {
+            markDirty(player.x, player.y);
+        }
+
+        // Mark current player positions
+        for (const player of players) {
+            markDirty(player.x, player.y);
+        }
+
+        // Redraw affected tiles
+        for (const tile of dirtyTiles) {
+
+            const [x, y] = tile.split(",").map(Number);
+
+            drawTile(x, y);
+        }
+
+        // Draw all players again
+        for (const player of players) {
+            drawPlayer(player);
+        }
+
+        // Save previous state
+        this.previousMap = map.map(row => [...row]);
+
+        this.previousPlayers = players.map(player => ({
+            x: player.x,
+            y: player.y,
+            color: player.color
+        }));
     },
 
     loadImages: function () {
 
         const tileFiles = {
             0: "Floor.png",
+            16: "Hole.png",
             144: "Hole.png",
             128: "Floor.png",
             129: "Floor.png",
@@ -126,7 +204,7 @@
             64: "Floor.png",
             192: "FreezeMine.png",
             96: "Floor.png",
-            224: "PointMine.png",
+            224: "Mine.png",
             333: "Player.png",
         };
 
@@ -161,6 +239,7 @@ window.gameRenderer.loadImages();
 
 
 // Empty = 0b0000_0000,         // 0
+// Outside = 0b0001_0000,       // 16
 // Hole = 0b1001_0000,          // 144
 // MineClose0 = 0b1000_0000,    // 128
 // MineClose1 = 0b1000_0001,    // 129
