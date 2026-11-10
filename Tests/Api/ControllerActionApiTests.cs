@@ -313,16 +313,56 @@ public class ControllerActionApiTests(WebApplicationFactory<Program> factory) : 
         Assert.False(body.TryGetProperty("count", out _));
     }
 
-    [Fact]
-    public async Task Dig_EmptyTile_ReturnsLightOff()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Dig_EmptyTile_CreatesVisibleHoleAndReturnsLightOff(bool scanned)
     {
         var (pin, playerId) = await StartedAsync();
         PrepareInFront(pin, playerId, TileContent.Empty);
+
+        if (scanned)
+            Assert.True((await BodyAsync(await ActionAsync(pin, playerId, "scan"))).GetProperty("ok").GetBoolean());
 
         var body = await BodyAsync(await ActionAsync(pin, playerId, "dig"));
 
         Assert.True(body.GetProperty("ok").GetBoolean());
         Assert.Equal("off", body.GetProperty("light").GetString());
+        var player = await PlayerAsync(pin);
+        Assert.Equal((int)TileContent.Hole, player.GetProperty("view")[7].GetInt32());
+        Assert.Equal(0, player.GetProperty("score").GetInt32());
+    }
+
+    [Theory]
+    [InlineData(0, TileContent.MineClose0)]
+    [InlineData(1, TileContent.MineClose1)]
+    [InlineData(8, TileContent.MineClose8)]
+    public async Task Dig_MineCloseTile_CreatesVisibleHole(int adjacentMines, TileContent expectedTile)
+    {
+        var (pin, playerId) = await StartedAsync();
+        var state = GameFor(pin).StateOf(playerId)!;
+        state.Position = new(10, 10);
+        state.Facing = Direction.Up;
+        var (game, _, tile) = PrepareInFront(pin, playerId, TileContent.Empty);
+        var board = game.Board!;
+        foreach (var neighbour in board.Neighbours(tile).Take(adjacentMines))
+            board.Set(neighbour, neighbour == state.Position ? TileContent.DiscoveredPointMine : TileContent.PointMine);
+
+        var scan = await BodyAsync(await ActionAsync(pin, playerId, "scan"));
+        Assert.True(scan.GetProperty("ok").GetBoolean());
+        Assert.Equal(adjacentMines, scan.GetProperty("count").GetInt32());
+        Assert.Equal(expectedTile, board[tile].Visible());
+        Assert.Equal((int)expectedTile, (await PlayerAsync(pin)).GetProperty("view")[7].GetInt32());
+
+        var dig = await BodyAsync(await ActionAsync(pin, playerId, "dig"));
+
+        Assert.True(dig.GetProperty("ok").GetBoolean());
+        Assert.Equal("off", dig.GetProperty("light").GetString());
+        Assert.False(dig.TryGetProperty("count", out _));
+        Assert.Equal(TileContent.Hole, board[tile].Visible());
+        var player = await PlayerAsync(pin);
+        Assert.Equal((int)TileContent.Hole, player.GetProperty("view")[7].GetInt32());
+        Assert.Equal(0, player.GetProperty("score").GetInt32());
     }
 
     [Fact]

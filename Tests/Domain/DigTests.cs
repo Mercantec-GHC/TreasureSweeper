@@ -97,17 +97,71 @@ public class DigTests
     }
 
     [Fact]
-    public void Dig_EmptyTile_GivesNothingButStartsCooldown()
+    public void Dig_EmptyTile_CreatesHoleAndStartsCooldown()
     {
         var (game, player, state, _) = StartedSolo();
+        var changes = 0;
+        game.Changed += () => changes++;
 
         var result = game.Act(player, DIG);
 
         Assert.True(result.Success);
-        Assert.Equal(TileContent.Empty, result.Dig!.Found);
+        Assert.Equal(IN_FRONT, result.Dig!.Tile);
+        Assert.Equal(TileContent.Empty, result.Dig.Found);
         Assert.Equal(0, result.Dig.Points);
         Assert.Equal(0, state.Score);
+        Assert.Equal(TileContent.Hole, game.Board![IN_FRONT]);
+        Assert.Equal(TileContent.Hole, game.Board[IN_FRONT].Visible());
+        Assert.Equal(GameError.Blocked, game.Act(player, new PlayerAction(ActionKind.Move)).Error);
         Assert.Equal(GameError.OnCooldown, game.Act(player, DIG).Error);
+        Assert.Equal(1, changes);
+    }
+
+    [Theory]
+    [InlineData(0, TileContent.MineClose0)]
+    [InlineData(1, TileContent.MineClose1)]
+    [InlineData(2, TileContent.MineClose2)]
+    [InlineData(3, TileContent.MineClose3)]
+    [InlineData(4, TileContent.MineClose4)]
+    [InlineData(5, TileContent.MineClose5)]
+    [InlineData(6, TileContent.MineClose6)]
+    [InlineData(7, TileContent.MineClose7)]
+    [InlineData(8, TileContent.MineClose8)]
+    public void Dig_MineCloseTile_ReplacesMineCountWithHole(int adjacentMines, TileContent expectedTile)
+    {
+        var (game, player, state, _) = StartedSolo();
+        var board = game.Board!;
+        foreach (var neighbour in board.Neighbours(IN_FRONT).Take(adjacentMines))
+            board.Set(neighbour, neighbour == state.Position ? TileContent.DiscoveredPointMine : TileContent.PointMine);
+
+        var scan = game.Act(player, new PlayerAction(ActionKind.Scan));
+        Assert.True(scan.Success);
+        Assert.Equal(adjacentMines, scan.Scan!.AdjacentMines);
+        Assert.Equal(expectedTile, board[IN_FRONT]);
+
+        var dig = game.Act(player, DIG).Dig!;
+
+        Assert.Equal(TileContent.Empty, dig.Found);
+        Assert.Equal(0, dig.Points);
+        Assert.Equal(0, state.Score);
+        Assert.Equal(TileContent.Hole, board[IN_FRONT]);
+        Assert.Equal(TileContent.Hole, board[IN_FRONT].Visible());
+        Assert.Equal(GameError.Blocked, game.Act(player, new PlayerAction(ActionKind.Move)).Error);
+    }
+
+    [Fact]
+    public void Dig_DifferentEmptyTiles_CreatesMultipleHoles()
+    {
+        var (game, player, _, time) = StartedSolo();
+        var toRight = new Position(11, 10);
+
+        Assert.True(game.Act(player, DIG).Success);
+        Assert.True(game.Act(player, new PlayerAction(ActionKind.Rotate, Direction.Right)).Success);
+        time.Advance(Game.DIG_COOLDOWN);
+        Assert.True(game.Act(player, DIG).Success);
+
+        Assert.Equal(TileContent.Hole, game.Board![IN_FRONT]);
+        Assert.Equal(TileContent.Hole, game.Board[toRight]);
     }
 
     [Fact]
@@ -229,21 +283,32 @@ public class DigTests
     {
         var (game, player, _, time) = StartedSolo();
         Assert.True(game.Act(player, DIG).Success);
+        Assert.Equal(TileContent.Hole, game.Board![IN_FRONT]);
 
         time.Advance(Game.DIG_COOLDOWN - TimeSpan.FromMilliseconds(1));
         Assert.Equal(GameError.OnCooldown, game.Act(player, DIG).Error);
+        Assert.Equal(TileContent.Hole, game.Board[IN_FRONT]);
 
         time.Advance(TimeSpan.FromMilliseconds(1));
+        var fill = game.Act(player, DIG);
+        Assert.True(fill.Success);
+        Assert.Equal(TileContent.Hole, fill.Dig!.Found);
+        Assert.Equal(TileContent.Empty, game.Board[IN_FRONT]);
+
+        time.Advance(Game.DIG_COOLDOWN);
         Assert.True(game.Act(player, DIG).Success);
+        Assert.Equal(TileContent.Hole, game.Board[IN_FRONT]);
     }
 
     [Fact]
-    public void Dig_DoesNotBlockScanOrMove()
+    public void Dig_CooldownDoesNotBlockScanOrMoveInAnotherDirection()
     {
         var (game, player, _, _) = StartedSolo();
-        game.Act(player, DIG);
+        Assert.True(game.Act(player, DIG).Success);
 
         Assert.True(game.Act(player, new PlayerAction(ActionKind.Scan)).Success);
+        Assert.Equal(GameError.Blocked, game.Act(player, new PlayerAction(ActionKind.Move)).Error);
+        Assert.True(game.Act(player, new PlayerAction(ActionKind.Rotate, Direction.Right)).Success);
         Assert.True(game.Act(player, new PlayerAction(ActionKind.Move)).Success);
     }
 
