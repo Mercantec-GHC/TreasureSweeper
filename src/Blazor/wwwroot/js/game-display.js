@@ -34,9 +34,9 @@
             const tile = map[x][y];
 
             // Only display numbers for MineClose tiles
-            if (tile >= 128 && tile <= 136) {
+            if (tile & 0b1000_0000 == 0b1000_0000) {
 
-                const number = tile - 128;
+                const number = tile | 0b1111;
 
                 const pixelX = x * tileSize;
                 const pixelY = y * tileSize;
