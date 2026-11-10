@@ -1,0 +1,15 @@
+# Local override. The Dokploy host has no free bridge subnets, so the base file
+# attaches to the external dokploy-network. This file swaps in a local network
+# and publishes Postgres on 127.0.0.1 for `dotnet run`.
+#
+# docker compose -f docker-compose.yml -f docker-compose.local.yml up -d database
+
+networks:
+  default:
+    name: treasuresweeper-local
+    external: false
+
+services:
+  database:
+    ports:
+      - "127.0.0.1:${POSTGRES_PORT:-5432}:5432"

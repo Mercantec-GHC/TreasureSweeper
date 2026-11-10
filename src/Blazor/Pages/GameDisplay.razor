@@ -1,0 +1,73 @@
+﻿@inject IJSRuntime JS
+@using Domain.Boards;
+@using Domain.Games;
+
+<br>
+<canvas @ref="gameCanvas"
+        width="@(mapSize * tileSize)"
+        height="@(mapSize * tileSize)"
+        class="game-canvas">
+</canvas>
+
+
+@code {
+    private ElementReference gameCanvas;
+    int mapSize = 0;
+    int tileSize = 32;
+
+    public async Task LoadMap(Game game)
+    {
+        List<PlayerDisplayInfo> playerInfoList = new List<PlayerDisplayInfo>();
+
+        foreach (var player in game.Players)
+        {
+            PlayerState? playerState = game.StateOf(player.Id);
+            if (playerState == null) continue;
+
+            playerInfoList.Add(new PlayerDisplayInfo
+            {
+                Color = player.Color,
+                Symbol = player.Symbol,
+                X = playerState.Position.X,
+                Y = playerState.Position.Y
+            });
+        }
+
+        Board map = game.Board!;
+        byte[][] tiles = new byte[map.Size][];
+
+        for (int x = 0; x < map.Size; x++)
+        {
+            tiles[x] = new byte[map.Size];
+
+            for (int y = 0; y < map.Size; y++)
+            {
+                Position position = new Position(x, y);
+
+                // Only the visible projection is sent to the browser so undug treasure or
+                // mine positions never reach the client, not even hidden.
+                tiles[x][y] = (byte)map[position].Visible();
+            }
+        }
+
+        mapSize = map.Size;
+
+        await InvokeAsync(StateHasChanged);
+        await Task.Yield();
+
+        await JS.InvokeVoidAsync(
+            "gameRenderer.drawMap",
+            gameCanvas,
+            tiles,
+            playerInfoList
+        );
+    }
+
+    public class PlayerDisplayInfo
+    {
+        public string Color { get; set; } = string.Empty;
+        public string Symbol { get; set; } = string.Empty;
+        public int X { get; set; }
+        public int Y { get; set; }
+    }
+}

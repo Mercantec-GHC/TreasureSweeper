@@ -1,34 +1,60 @@
-﻿@page "/game-screen"
+﻿@inject IJSRuntime JS
+@using Domain.Games;
+@using Blazor.Realtime;
+@inject GameRegistry gameRegistry
+@inject GamePublisherRegistry publishers
+@implements IDisposable
+
+@page "/game-screen"
 
 <PageTitle>Game Screen</PageTitle>
 
-<h1>Hello, world!</h1>
-
-Welcome to your new app.
-
-<div>
-    <button class="btn btn-primary" @onclick="HostGame">Host Game</button>
-    <button class="btn btn-primary" @onclick="JoinGame">Join Game</button>
-</div>
-
-@if (lobby != null)
+<div class="retro">
+<h1>Game Screen</h1>
+@if (game == null)
 {
     <div>
-        <h2>Lobby ID: @lobby.LobbyId</h2>
+        <button class="btn btn-primary" disabled="@hostedGame" @onclick="HostGame">Host Game</button>
+        <br /><br />
+        <InputText @bind-Value="pinInput" placeholder="Enter game pin" />
+        <button class="btn btn-primary" @onclick="JoinGame">Join Game</button>
+    </div>
+}
+else
+{
+    <div>
+        <h2>Lobby ID: @game.Pin</h2>
         <p>Players in Lobby:</p>
         <ul>
-            @foreach (var player in lobby.Players)
+            @foreach (var player in game.Players)
             {
-                <li>@player.Name</li>
+                <li style="color: @player.Color">
+                    @player.Name
+                </li>
             }
         </ul>
     </div>
-    <InputText @bind-Value="player1.Name" placeholder="Enter your name" />
-    <button class="btn btn-primary" @onclick="() => JoinPlayer(player1)">Join Lobby</button>
+    <InputText @bind-Value="inputName" placeholder="Enter your name" />
+    <button class="btn btn-primary" @onclick="() => JoinPlayer()">Join Lobby</button>
+    <br />
+    @if (hostedGame)
+    {
+        <button class="btn btn-primary" @onclick="StartGame">Start Game</button>
+        <br />
+    }
+    <br />
+    <button class="btn btn-primary" @onclick="LeaveGame">Leave Game</button>
 
-    <button class="btn btn-primary" @onclick="StartGame">Start Game</button>
+    <div @ref="gameContainer" class="game-container">
+
+        <button class="btn btn-primary fullscreen-button"
+                @onclick="ToggleFullscreen">
+            ⛶ Fullscreen
+        </button>
+
+        <GameDisplay @ref="gameDisplay" />
+    </div>
 }
-
 
 @if (!string.IsNullOrEmpty(message))
 {
@@ -36,80 +62,164 @@ Welcome to your new app.
         @message
     </div>
 }
+</div>
 
 @code {
-    Lobby lobby;
-    Game game = new Game();
-    Player[] players = new Player[0];
+    private ElementReference gameContainer;
+    private GameDisplay? gameDisplay;
 
-    Player player1 = new Player(1, "Player 1");
+    Game? game;
+    Player? player;
+    IDisposable? subscription;
+    string pinInput = "0000";
+    bool playerJoined = false;
+    bool hostedGame = false;
+
+    string inputName = string.Empty;
 
     string message = string.Empty;
 
-
-    private void StartGame()
+    private async Task StartGame()
     {
-        // Logic to start the game goes here
-    }
-
-    private void UpdateLobby()
-    {
-        // Logic to update the lobby goes here
-    }
-
-    private void JoinPlayer(Player player)
-    {
-        if (lobby == null) return;
-
-        if (lobby.Players.Contains(player))
+        if (game == null)
         {
-            message = "You are already in the lobby.";
+            message = "No game to start.";
             return;
         }
-        lobby.Players.Add(player);
-        message = "You have joined the lobby.";
+
+        GameResult result = game.Start();
+        if (!result.Success)
+        {
+            message = $"Error starting game: {result.Error}";
+            return;
+        }
+
+        await LoadMap();
+    }
+
+    private void JoinPlayer()
+    {
+        if (game == null || playerJoined) return;
+
+        var result = game.Join(inputName, null);
+        if (result.Success) 
+        { 
+            player = result.Player;
+            playerJoined = true; 
+        }
+        else
+        {
+            message = result.Error.ToString()!;
+        }
+    }
+
+    private string GenerateRandomColor(HashSet<string> usedColors)
+    {
+        Random random = new Random();
+
+        string color;
+
+        do
+        {
+            color = $"#{random.Next(0x1000000):X6}";
+        }
+        while (usedColors.Contains(color));
+
+        return color;
     }
 
     void HostGame()
     {
-        lobby = new Lobby();
+        CreateGameResult result = gameRegistry.Create();
+
+        if (!result.Success)
+        {
+            message = $"Error creating game: {result.Error}";
+            return;
+        }
+        game = result.Game;
+        SubscribeToGame();
+        hostedGame = true;
     }
 
     void JoinGame()
     {
-        // Logic to join the game goes here
-    }
-
-    public class Player
-    {
-        public int Id { get; set; }
-        public string Name { get; set; }
-        public int Score { get; set; }
-
-        public Player(int id, string name)
+        if (string.IsNullOrWhiteSpace(pinInput))
         {
-            Id = id;
-            Name = name;
-            Score = 0;
+            message = "Please enter a valid PIN.";
+            return;
         }
-    }
-
-    public class Game
-    {
-        public List<Player> Players { get; set; } = new List<Player>();
-        public bool IsActive { get; set; }
-    }
-
-    public class Lobby
-    {
-        public int LobbyId { get; set; }
-        public List<Player> Players { get; set; } = new List<Player>();
-        public bool IsOpen { get; set; }
-
-        public Lobby()
+        if (pinInput.Length < 4 || pinInput.Length > 8)
         {
-            LobbyId = new Random().Next(1000, 9999); // Generate a random lobby ID
-            IsOpen = true;
+            message = "PIN must contain 4 to 8 digits.";
+            return;
         }
+
+        Game? joinableGame = gameRegistry.Find(pinInput.ToString());
+        if (joinableGame == null)
+        {
+            message = $"No game found with PIN {pinInput}.";
+            return;
+        }
+
+        game = joinableGame;
+        SubscribeToGame();
+        hostedGame = false;
+    }
+
+    void LeaveGame()
+    {
+        if (game == null) return;
+        if (player != null)
+        {
+            //game.Leave(player);
+        }
+
+        if (hostedGame)
+        {
+            //gameRegistry.Remove(game.Pin);
+        }
+
+        playerJoined = false;
+        player = null;
+        Dispose();
+        game = null;
+        hostedGame = false;
+        message = "You have left the game.";
+    }
+
+    private async Task LoadMap()
+    {
+        if (gameDisplay == null || game == null || !game.Players.Any() || game.Board == null) return;
+        
+        await gameDisplay.LoadMap(game);
+        
+    }
+
+    private async Task ToggleFullscreen()
+    {
+        await JS.InvokeVoidAsync(
+            "gameFullscreen.toggle",
+            gameContainer
+        );
+    }
+
+    private async Task OnGameChanged()
+    {
+        StateHasChanged();
+        await LoadMap();
+    }
+
+    private void SubscribeToGame()
+    {
+        if (game == null) return;
+        subscription?.Dispose();
+        subscription = publishers.For(game).Subscribe(() => InvokeAsync(OnGameChanged));
+    }
+
+    public void Dispose()
+    {
+        subscription?.Dispose();
+        subscription = null;
     }
 }

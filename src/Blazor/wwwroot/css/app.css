@@ -1,3 +1,47 @@
+.game-container {
+    position: relative;
+    padding: 20px;
+    background: #222;
+    text-align: center;
+}
+
+.game-canvas {
+    display: block;
+    image-rendering: pixelated;
+    image-rendering: crisp-edges;
+}
+
+/* Fullscreen layout */
+.game-container:fullscreen {
+    width: 100%;
+    height: 100%;
+    padding: 0;
+    box-sizing: border-box;
+    background: #222;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+    /* Canvas in fullscreen */
+    .game-container:fullscreen .game-canvas {
+        width: var(--canvas-size);
+        height: var(--canvas-size);
+        max-width: none;
+        max-height: none;
+        image-rendering: pixelated;
+    }
+
+    /* Keep fullscreen button in the top-right */
+    .game-container:fullscreen .fullscreen-button {
+        position: absolute;
+        top: 15px;
+        right: 15px;
+        z-index: 10;
+    }
+
+
+
 html, body {
     font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
 }
@@ -22,6 +66,7 @@ a, .btn-link {
 
 .content {
     padding-top: 1.1rem;
+    background-color: #05163d;
 }
 
 .valid.modified:not([type=checkbox]) {
@@ -112,4 +157,13 @@ code {
 
 .form-floating > .form-control-plaintext:focus::placeholder, .form-floating > .form-control:focus::placeholder {
     text-align: start;
+}
+
+.container-fluid .navbar-brand {
+    font-family: 'Press Start 2P', monospace;
+    font-size: 1.4rem;
+    color: #ffd23f;
+    text-shadow: 3px 3px 0 #ff2e88;
+    text-transform: uppercase;
+    margin: 0 0 1rem;
 }

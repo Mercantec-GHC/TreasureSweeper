@@ -1,0 +1,108 @@
+/* Retro arcade theme. Scoped to .retro so it never restyles the rest of the app. */
+.retro {
+    --bg: #140c2e;
+    --neon: #39ff14;
+    --pink: #ff2e88;
+    --cyan: #00e5ff;
+    --gold: #ffd23f;
+    --text: #e8e6ff;
+    --muted: #9b93d3;
+
+    max-width: 880px;
+    margin: 1.5rem auto;
+    padding: 1.5rem 1.75rem;
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'VT323', 'Courier New', monospace;
+    font-size: 1.3rem;
+    line-height: 1.3;
+    border: 4px solid var(--neon);
+    border-radius: 8px;
+    box-shadow: 0 0 0 4px var(--bg), 0 0 26px rgba(57, 255, 20, .35);
+}
+
+.retro h1 {
+    font-family: 'Press Start 2P', monospace;
+    font-size: 1.4rem;
+    color: var(--gold);
+    text-shadow: 3px 3px 0 var(--pink);
+    text-transform: uppercase;
+    margin: 0 0 1rem;
+}
+.retro h2 {
+    font-family: 'Press Start 2P', monospace;
+    font-size: .95rem;
+    color: var(--cyan);
+    text-transform: uppercase;
+    margin: 1.4rem 0 .6rem;
+}
+
+.retro table { width: 100%; border-collapse: collapse; margin-bottom: .5rem; }
+.retro th {
+    color: var(--pink);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    text-align: left;
+    border-bottom: 2px dashed var(--cyan);
+    padding: .35rem .6rem;
+}
+.retro td { padding: .35rem .6rem; border-bottom: 1px solid rgba(255, 255, 255, .08); }
+.retro tbody tr:hover { background: rgba(0, 229, 255, .08); }
+.retro .num { text-align: right; }
+.retro .winner-row td { color: var(--gold); text-shadow: 0 0 8px rgba(255, 210, 63, .6); }
+
+.retro-tabs { display: flex; gap: .5rem; margin-bottom: 1.25rem; flex-wrap: wrap; }
+.retro-tab {
+    font-family: 'Press Start 2P', monospace;
+    font-size: .6rem;
+    padding: .6rem .85rem;
+    border: 3px solid var(--cyan);
+    color: var(--cyan);
+    background: transparent;
+    text-decoration: none;
+    text-transform: uppercase;
+}
+.retro-tab:hover { background: rgba(0, 229, 255, .15); }
+.retro-tab.active { background: var(--cyan); color: var(--bg); }
+
+.retro-btn {
+    font-family: 'Press Start 2P', monospace;
+    font-size: .7rem;
+    padding: .7rem 1rem;
+    border: 3px solid var(--neon);
+    background: transparent;
+    color: var(--neon);
+    text-transform: uppercase;
+    text-decoration: none;
+    cursor: pointer;
+    display: inline-block;
+}
+.retro-btn:hover { background: var(--neon); color: var(--bg); }
+
+.retro a { color: var(--cyan); }
+.retro .muted { color: var(--muted); }
+
+.retro .banner { text-align: center; margin: 1rem 0 1.5rem; }
+.retro .banner .crown { font-size: 2.2rem; }
+.retro .banner .name {
+    font-family: 'Press Start 2P', monospace;
+    font-size: 1.6rem;
+    color: var(--gold);
+    text-shadow: 0 0 12px rgba(255, 210, 63, .7), 3px 3px 0 var(--pink);
+    margin: .5rem 0;
+}
+.retro .banner .sub { color: var(--cyan); }
+.retro .actions { text-align: center; margin-top: 1.5rem; display: flex; gap: .6rem; justify-content: center; flex-wrap: wrap; }
+
+@media (max-width: 600px) {
+    .retro { margin: .5rem; padding: 1rem; font-size: 1.1rem; }
+    .retro h1 { font-size: 1rem; }
+    .retro h2 { font-size: .8rem; }
+}
+
+.retro .btn { font-family: 'Press Start 2P', monospace; font-size: .7rem; padding: .7rem 1rem; border: 3px solid var(--neon); border-radius: 0; background: transparent; color: var(--neon); text-transform: uppercase; margin: .25rem .25rem .25rem 0; }
+.retro .btn:hover:not(:disabled) { background: var(--neon); color: var(--bg); }
+.retro .btn:disabled { opacity: .4; }
+.retro input { background: #0c0720; color: var(--text); border: 2px solid var(--cyan); border-radius: 0; padding: .45rem .6rem; font: inherit; }
+.retro .alert { background: transparent; border: 2px dashed var(--pink); color: var(--text); border-radius: 0; margin-top: 1rem; }
+.retro .text-muted, .retro .muted { color: var(--muted) !important; }
