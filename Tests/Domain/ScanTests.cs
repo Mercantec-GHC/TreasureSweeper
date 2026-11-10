@@ -64,6 +64,7 @@ public class ScanTests
 
         var scan = game.Act(player, SCAN).Scan!;
 
+        
         Assert.True(scan.OnMine);
         Assert.Equal(0, scan.AdjacentMines);
         Assert.Equal(TileContent.FreezeMine, game.Board[IN_FRONT].HiddenContent());

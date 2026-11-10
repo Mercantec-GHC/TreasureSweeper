@@ -14,15 +14,21 @@ public enum GameError
     Blocked,
 }
 
-public sealed record GameResult(GameError? Error, ScanResult? Scan = null)
+public sealed record GameResult(GameError? Error, ScanResult? Scan = null, DigResult? Dig = null, MineHit? Mine = null)
 {
     public bool Success => Error is null;
     public static GameResult Ok { get; } = new((GameError?)null);
     public static GameResult Fail(GameError error) => new(error);
     public static GameResult Scanned(ScanResult scan) => new(null, scan);
+    public static GameResult Dug(DigResult dig) => new(null, Dig: dig);
+    public static GameResult SteppedOnMine(MineHit mine) => new(null, Mine: mine);
 }
 
 public sealed record ScanResult(Position Tile, int AdjacentMines, bool OnMine);
+
+public sealed record DigResult(Position Tile, TileContent Found, int Points, bool Triggered = false);
+
+public sealed record MineHit(Position Tile, TileContent Mine, int Points);
 
 public sealed record JoinResult(Player? Player, bool Reconnected, GameError? Error)
 {

@@ -15,5 +15,6 @@ public sealed record PlayerResponse(
     string Symbol,
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] PositionResponse? Position = null,
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] Direction? Facing = null,
-    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] IReadOnlyList<int?>? View = null
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] IReadOnlyList<int?>? View = null,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] int? Score = null
 );
