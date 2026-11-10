@@ -86,17 +86,29 @@ internal static class ControllerEndpoints
             return Reply(StatusCodes.Status400BadRequest, ControllerJoinResponse.Fail("Unknown action or direction"));
 
         var result = game.Act(player, action);
+        var facing = Compass(game.StateOf(player.Id)?.Facing);
         if (!result.Success)
-            return Reply(StatusCodes.Status200OK, ControllerJoinResponse.Rejected(result.Error!.Value.ToHttp().Message));
+            return Reply(StatusCodes.Status200OK,
+                ControllerJoinResponse.Rejected(result.Error!.Value.ToHttp().Message) with { Facing = facing });
 
-        return Reply(StatusCodes.Status200OK, result switch
+        var body = result switch
         {
             { Scan: { } scan } => ControllerJoinResponse.Scanned(scan.OnMine, scan.AdjacentMines),
             { Dig: { } dig } => ControllerJoinResponse.Dug(DigLight(dig)),
             { Mine: { } mine } => ControllerJoinResponse.Dug(MineLight(mine.Mine)),
             _ => ControllerJoinResponse.Success() 
-        });
+        };
+        return Reply(StatusCodes.Status200OK, body with { Facing = facing });
     }
+
+    private static string? Compass(Direction? facing) => facing switch
+    {
+        Direction.Up => "N",
+        Direction.Right => "E",
+        Direction.Down => "S",
+        Direction.Left => "W",
+        _ => null,
+    };
 
     private static string DigLight(DigResult dig) => dig switch
     {
