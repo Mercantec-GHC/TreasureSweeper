@@ -1,0 +1,125 @@
+.home .center {
+    text-align: center;
+}
+
+.home h3 {
+    font-family: 'Press Start 2P', monospace;
+    font-size: .75rem;
+    color: var(--gold);
+    text-transform: uppercase;
+    margin: .5rem 0;
+}
+
+.steps,
+.cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+}
+
+.step {
+    position: relative;
+    padding: 1rem;
+    border: 3px solid var(--cyan);
+    text-align: center;
+}
+
+.step p {
+    margin: 0;
+}
+
+.step-num {
+    font-family: 'Press Start 2P', monospace;
+    font-size: 1.8rem;
+    color: var(--pink);
+    text-shadow: 3px 3px 0 var(--gold);
+}
+
+.pads {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: .75rem;
+}
+
+.pad {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: .25rem;
+    width: 110px;
+    padding: .75rem .5rem;
+    border: 3px solid var(--neon);
+    border-radius: 50%;
+    aspect-ratio: 1;
+    justify-content: center;
+    text-align: center;
+    line-height: 1.1;
+}
+
+.pad-key {
+    font-family: 'Press Start 2P', monospace;
+    font-size: .6rem;
+    color: var(--muted);
+}
+
+.pad-icon {
+    font-size: 1.8rem;
+    color: var(--neon);
+}
+
+.lights {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 1rem 1.5rem;
+}
+
+.light {
+    display: flex;
+    align-items: center;
+    gap: .5rem;
+}
+
+.dot {
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    display: inline-block;
+}
+
+.dot.red { background: #ff3030; box-shadow: 0 0 10px #ff3030; }
+.dot.yellow { background: #ffd23f; box-shadow: 0 0 10px #ffd23f; }
+.dot.purple { background: #b84dff; box-shadow: 0 0 10px #b84dff; }
+.dot.blue { background: #3a8bff; box-shadow: 0 0 10px #3a8bff; }
+.dot.green { background: #39ff14; box-shadow: 0 0 10px #39ff14; }
+
+.card {
+    display: flex;
+    flex-direction: column;
+    gap: .35rem;
+    padding: .75rem;
+    border: 2px dashed var(--pink);
+}
+
+.card b {
+    color: var(--gold);
+}
+
+.organisers {
+    margin-top: 2rem;
+    padding: .75rem 1rem;
+    border: 2px solid var(--muted);
+}
+
+.organisers summary {
+    cursor: pointer;
+    font-family: 'Press Start 2P', monospace;
+    font-size: .7rem;
+    color: var(--muted);
+    text-transform: uppercase;
+}
+
+.organisers code {
+    color: var(--cyan);
+}

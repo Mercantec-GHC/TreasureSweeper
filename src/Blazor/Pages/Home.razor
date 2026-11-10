@@ -1,92 +1,65 @@
 @page "/"
-@using Shared.Leaderboard
-@using Infrastructure.Persistence
-@inject ILeaderboardQueries Queries
 
-<PageTitle>Leaderboard</PageTitle>
+<PageTitle>Treasure Sweeper</PageTitle>
 
-<div class="retro">
-    <h1>Treasure Sweeper</h1>
-
-    <div class="retro-tabs">
-        <span class="retro-tab active">Leaderboard</span>
-        <a class="retro-tab" href="history">History</a>
+<div class="retro home">
+    <div class="banner">
+        <div class="crown">💎</div>
+        <div class="name">Treasure Sweeper</div>
+        <div class="sub">Dig for treasure. Dodge the mines. Up to 8 players.</div>
     </div>
 
-    <button class="retro-btn" @onclick="Load">Refresh</button>
+    <h2>▶ How to play</h2>
+    <div class="steps">
+        <div class="step">
+            <div class="step-num">1</div>
+            <h3>Open</h3>
+            <p>Go to <a href="game-screen">Game Screen</a>, type the <b>PIN</b> your controllers use and press <b>Join Game</b>.</p>
+        </div>
+        <div class="step">
+            <div class="step-num">2</div>
+            <h3>Join</h3>
+            <p>Turn on your Oplà. It connects by itself — watch your name pop up in the lobby.</p>
+        </div>
+        <div class="step">
+            <div class="step-num">3</div>
+            <h3>Play</h3>
+            <p>Press <b>Start Game</b>. You have <b>8 minutes</b> — go!</p>
+        </div>
+    </div>
 
-    @if (error is not null)
-    {
-        <p class="muted">@error</p>
-    }
-    else if (scores is null)
-    {
-        <p>Loading…</p>
-    }
-    else
-    {
-        <h2>Top scores</h2>
-        <table>
-            <thead><tr><th>#</th><th>Player</th><th class="num">Score</th><th>When</th></tr></thead>
-            <tbody>
-                @for (var i = 0; i < scores.Count; i++)
-                {
-                    <tr>
-                        <td>@(i + 1)</td>
-                        <td>@scores[i].PlayerName</td>
-                        <td class="num">@scores[i].Score</td>
-                        <td>@scores[i].AchievedAt.LocalDateTime.ToString("g")</td>
-                    </tr>
-                }
-                @if (scores.Count == 0) { <tr><td colspan="4" class="muted">No rounds yet.</td></tr> }
-            </tbody>
-        </table>
+    <h2>🎮 Controls</h2>
+    <div class="pads">
+        <div class="pad"><span class="pad-key">0</span><span class="pad-icon">📡</span><span>Scan</span></div>
+        <div class="pad"><span class="pad-key">1</span><span class="pad-icon">↺</span><span>Turn left</span></div>
+        <div class="pad"><span class="pad-key">2</span><span class="pad-icon">⬆</span><span>Move</span></div>
+        <div class="pad"><span class="pad-key">3</span><span class="pad-icon">↻</span><span>Turn right</span></div>
+        <div class="pad"><span class="pad-key">4</span><span class="pad-icon">⛏</span><span>Dig</span></div>
+    </div>
+    <p class="muted center">Scan and dig always work on the tile <b>in front</b> of you. Turn first, then move.</p>
 
-        <h2>Most treasures</h2>
-        <table>
-            <thead><tr><th>#</th><th>Player</th><th class="num">Treasures</th></tr></thead>
-            <tbody>
-                @for (var i = 0; i < treasures!.Count; i++)
-                {
-                    <tr><td>@(i + 1)</td><td>@treasures[i].PlayerName</td><td class="num">@treasures[i].Value</td></tr>
-                }
-            </tbody>
-        </table>
+    <h2>💡 Lights</h2>
+    <div class="lights">
+        <div class="light"><span class="dot red"></span>Mine ahead!</div>
+        <div class="light"><span class="dot yellow"></span>Treasure found</div>
+        <div class="light"><span class="dot purple"></span>Point mine −25</div>
+        <div class="light"><span class="dot blue"></span>Frozen for 5 s</div>
+    </div>
 
-        <h2>Fewest steps to a treasure</h2>
-        <table>
-            <thead><tr><th>#</th><th>Player</th><th class="num">Steps</th></tr></thead>
-            <tbody>
-                @for (var i = 0; i < steps!.Count; i++)
-                {
-                    <tr><td>@(i + 1)</td><td>@steps[i].PlayerName</td><td class="num">@steps[i].Value</td></tr>
-                }
-            </tbody>
-        </table>
-    }
+    <h2>📜 Rules</h2>
+    <div class="cards">
+        <div class="card"><b>⏱ 8 min</b><span>Round ends when time is up or the last treasure is dug.</span></div>
+        <div class="card"><b>💰 1000</b><span>First treasure. Each next one is worth 100 less — be quick!</span></div>
+        <div class="card"><b>🔢 Numbers</b><span>A scan shows how many mines are around the tile.</span></div>
+        <div class="card"><b>🧊 Freeze mine</b><span>Step or dig on one and you're stuck for 5 seconds.</span></div>
+        <div class="card"><b>💣 Point mine</b><span>Costs 25 points. A scanned mine is safe to walk over.</span></div>
+        <div class="card"><b>🕳 Holes</b><span>Digging leaves a hole. Dig it again to fill it.</span></div>
+    </div>
+    <p class="muted center">Highest score wins.</p>
+
+    <div class="actions">
+        <a class="retro-btn" href="game-screen">▶ Play now</a>
+        <a class="retro-btn" href="leaderboard">🏆 Leaderboard</a>
+        <a class="retro-btn" href="history">📼 History</a>
+    </div>   
 </div>
-
-@code {
-    IReadOnlyList<LeaderboardEntryResponse>? scores;
-    IReadOnlyList<PlayerStatResponse>? treasures;
-    IReadOnlyList<PlayerStatResponse>? steps;
-    string? error;
-
-    protected override async Task OnInitializedAsync() => await Load();
-
-    private async Task Load()
-    {
-        try
-        {
-            scores = await Queries.GetTopScoresAsync(10);
-            treasures = await Queries.GetMostTreasuresAsync(10);
-            steps = await Queries.GetFewestStepsToTreasureAsync(10);
-            error = null;
-        }
-        catch
-        {
-            error = "Leaderboard unavailable — is the database running?";
-            scores = []; treasures = []; steps = [];
-        }
-    }
-}
