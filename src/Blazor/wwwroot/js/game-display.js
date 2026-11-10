@@ -34,7 +34,7 @@
             const tile = map[x][y];
 
             // Only display numbers for MineClose tiles
-            if (tile & 0b1000_0000 == 0b1000_0000) {
+            if (tile & 0b1111_0000 == 0b1000_0000) {
 
                 const number = tile & 0b1111;
 
