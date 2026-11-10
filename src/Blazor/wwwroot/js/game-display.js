@@ -46,6 +46,41 @@
             }
         }
 
+        function drawPlayers() {
+            for (const player of players) {
+                const pixelX = player.x * tileSize;
+                const pixelY = player.y * tileSize;
+
+                const playerImage = images[333];
+
+                // Create temporary canvas
+                const tempCanvas = document.createElement("canvas");
+                tempCanvas.width = playerImage.width;
+                tempCanvas.height = playerImage.height;
+
+                const tempCtx = tempCanvas.getContext("2d");
+
+                // Draw original white PNG
+                tempCtx.drawImage(playerImage, 0, 0);
+
+                // Apply color only to non-transparent pixels
+                tempCtx.globalCompositeOperation = "source-in";
+                tempCtx.fillStyle = player.color;
+                tempCtx.fillRect(
+                    0, 0,
+                    tempCanvas.width,
+                    tempCanvas.height
+                );
+
+                // Draw tinted player onto game canvas
+                ctx.drawImage(
+                    tempCanvas,
+                    pixelX, pixelY,
+                    tileSize, tileSize
+                );
+            }
+        }
+
         // First draw: render everything
         if (!this.previousMap) {
 
@@ -66,6 +101,7 @@
                 }
             }
         }
+        drawPlayers();
 
         // Save current map state
         this.previousMap = [...map];
@@ -91,6 +127,7 @@
             192: "FreezeMine.png",
             96: "Floor.png",
             224: "PointMine.png",
+            333: "Player.png",
         };
 
         let loaded = 0;
@@ -123,20 +160,20 @@
 window.gameRenderer.loadImages();
 
 
-// Empty = 0b0000_0000, // 0
-// Hole = 0b1001_0000, // 144
-// MineClose0 = 0b1000_0000, // 128
-// MineClose1 = 0b1000_0001, // 129
-// MineClose2 = 0b1000_0010, // 130
-// MineClose3 = 0b1000_0011, // 131
-// MineClose4 = 0b1000_0100, // 132
-// MineClose5 = 0b1000_0101, // 133
-// MineClose6 = 0b1000_0110, // 134
-// MineClose7 = 0b1000_0111, // 135
-// MineClose8 = 0b1000_1000, // 136
-// Treasure = 0b0010_0000, // 32
+// Empty = 0b0000_0000,         // 0
+// Hole = 0b1001_0000,          // 144
+// MineClose0 = 0b1000_0000,    // 128
+// MineClose1 = 0b1000_0001,    // 129
+// MineClose2 = 0b1000_0010,    // 130
+// MineClose3 = 0b1000_0011,    // 131
+// MineClose4 = 0b1000_0100,    // 132
+// MineClose5 = 0b1000_0101,    // 133
+// MineClose6 = 0b1000_0110,    // 134
+// MineClose7 = 0b1000_0111,    // 135
+// MineClose8 = 0b1000_1000,    // 136
+// Treasure = 0b0010_0000,      // 32
 // DiscoveredTreasure = 0b1010_0000, // 160
-// FreezeMine = 0b0100_0000, // 64
+// FreezeMine = 0b0100_0000,    // 64
 // DiscoveredFreezeMine = 0b1100_0000, // 192
 // PointMine = 0b0110_0000, // 96
 // DiscoveredPointMine = 0b1110_0000, // 224
