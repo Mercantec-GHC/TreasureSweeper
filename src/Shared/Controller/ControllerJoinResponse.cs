@@ -13,7 +13,8 @@ public sealed record ControllerJoinResponse(
     [property: JsonIgnore(Condition =JsonIgnoreCondition.WhenWritingNull)] string? Message = null,
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? Light = null,
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] int? Count = null,
-    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? Color = null
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? Color = null,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? Facing = null
 )
 {
     public static ControllerJoinResponse Joined(string playerId, string name, int number, string color, bool reconnected) =>

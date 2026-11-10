@@ -12,7 +12,37 @@ public class GameTests
         return game;
     }
 
-        [Fact]
+    [Fact]
+    public void Start_SetsEndsAtEightMinutesAhead()
+    {
+        var time = new Tests.Support.FakeTime();
+        var game = new Game("1234", time);
+        game.Join("P1", "DEV_1");
+
+        game.Start(new Random(1));
+
+        Assert.Equal(time.Now + TimeSpan.FromMinutes(8), game.EndsAt);
+    }
+
+    [Fact]
+    public void Act_AfterRoundDuration_EndsGameAndRejects()
+    {
+        var time = new Tests.Support.FakeTime();
+        var game = new Game("1234", time);
+        var player = game.Join("P1", "DEV_1").Player!;
+        game.Start(new Random(1));
+        var changed = false;
+        game.Changed += () => changed = true;
+
+        time.Advance(Game.ROUND_DURATION);
+        var result = game.Act(player, new PlayerAction(ActionKind.Scan));
+
+        Assert.Equal(GameError.RoundNotPlaying, result.Error);
+        Assert.Equal(GamePhase.Ended, game.Phase);
+        Assert.True(changed);
+    }
+
+    [Fact]
     public void Join_FirstPlayer_GetsNumberOneAndItsIdentity()
     {
         var game = new Game("1234");
