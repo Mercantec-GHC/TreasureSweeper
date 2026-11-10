@@ -10,6 +10,12 @@
         const tileSize = 32;
         const canvasSize = map.length * tileSize;
 
+        // A canvas that was never fully drawn (e.g. new game after leaving) needs a full redraw
+        if (!canvas.__fullyDrawn) {
+            this.previousMap = null;
+            this.previousPlayers = [];
+        }
+
         // Only resize if necessary
         if (canvas.width !== canvasSize ||
             canvas.height !== canvasSize) {

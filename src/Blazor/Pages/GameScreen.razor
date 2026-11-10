@@ -1,6 +1,7 @@
-﻿@inject IJSRuntime JS
+@inject IJSRuntime JS
 @using Domain.Games;
 @using Blazor.Realtime;
+@using Domain.Boards;
 @inject GameRegistry gameRegistry
 @inject GamePublisherRegistry publishers
 @implements IDisposable
@@ -10,216 +11,327 @@
 <PageTitle>Game Screen</PageTitle>
 
 <div class="retro">
-<h1>Game Screen</h1>
-@if (game == null)
-{
-    <div>
-        <button class="btn btn-primary" disabled="@hostedGame" @onclick="HostGame">Host Game</button>
-        <br /><br />
-        <InputText @bind-Value="pinInput" placeholder="Enter game pin" />
-        <button class="btn btn-primary" @onclick="JoinGame">Join Game</button>
-    </div>
-}
-else
-{
-    <div>
-        <h2>Lobby ID: @game.Pin</h2>
-        <p>Players in Lobby:</p>
-        <ul>
-            @foreach (var player in game.Players)
-            {
-                <li style="color: @player.Color">
-                    @player.Name
-                </li>
-            }
-        </ul>
-    </div>
-    <InputText @bind-Value="inputName" placeholder="Enter your name" />
-    <button class="btn btn-primary" @onclick="() => JoinPlayer()">Join Lobby</button>
-    <br />
-    @if (hostedGame)
-    {
-        <button class="btn btn-primary" @onclick="StartGame">Start Game</button>
-        <br />
-    }
-    <br />
-    <button class="btn btn-primary" @onclick="LeaveGame">Leave Game</button>
 
-    <div @ref="gameContainer" class="game-container">
+	<div @ref="gameContainer" class="@(game?.Board != null ? "game-layout" : "")">
+		<section class="game-column lobby-column">
+			@if (game == null)
+			{
+				<div class="initial-game">
+					<h1>Game Screen</h1>
+					<button class="btn btn-primary" disabled="@hostedGame" @onclick="HostGame">Host Game</button>
+					<div class="join-game-group">
+						<InputText @bind-Value="pinInput" placeholder="Enter game pin" />
+						<button class="btn btn-primary" @onclick="JoinGame">Join Game</button>
+					</div>
+				</div>
+			}
+			else
+			{
+				<div class="lobby-game">
+					<h1>Game Screen</h1>
+					<h2>Lobby ID: @game.Pin</h2>
+					<p>Players in Lobby:</p>
+					<ul>
+						@foreach (var p in game.Players)
+						{
+							<li style="color: @p.Color">
+								@p.Name
+							</li>
+						}
+					</ul>
+					@if (game.Phase == GamePhase.Waiting)
+					{
+						<div class="join-game-group">
+							<InputText @bind-Value="inputName" placeholder="Enter your name" />
+							<button class="btn btn-primary" @onclick="() => JoinPlayer()">Join Lobby</button>
+						</div>
+						@if (hostedGame)
+						{
+							<button class="btn btn-primary" @onclick="StartGame">Start Game</button>
+						}
+					}
+					<button class="btn btn-primary" @onclick="LeaveGame">Leave Game</button>
+				</div>
+			}
 
-        <button class="btn btn-primary fullscreen-button"
-                @onclick="ToggleFullscreen">
-            ⛶ Fullscreen
-        </button>
+			@if (!string.IsNullOrEmpty(message))
+			{
+				<div class="alert alert-info" role="alert">
+					@message
+				</div>
+			}
+		</section>
 
-        <GameDisplay @ref="gameDisplay" />
-    </div>
-}
+		@if (game?.Board != null)
+		{
+			<section class="game-column board-column">
+				<div class="game-container">
 
-@if (!string.IsNullOrEmpty(message))
-{
-    <div class="alert alert-info" role="alert">
-        @message
-    </div>
-}
+					<button class="btn btn-primary fullscreen-button"
+							@onclick="ToggleFullscreen">
+						⛶ Fullscreen
+					</button>
+
+					<GameDisplay @ref="gameDisplay" />
+				</div>
+			</section>
+
+			<section class="game-column stats-column">
+				<div class="stat-box">
+					<h3>Time Left</h3>
+					<div class="countdown">@RemainingTimeText</div>
+				</div>
+
+				<div class="stat-box">
+					<h3>Treasures Left</h3>
+					<div class="treasures">@(RemainingTreasures?.ToString() ?? "--")</div>
+				</div>
+
+				<div class="stat-box">
+					<h3>Scoreboard</h3>
+					<ol class="scoreboard">
+						@foreach (var (p, score) in Scoreboard)
+						{
+							<li style="color: @p.Color">
+								<span>@p.Name</span>
+								<span class="score">@score</span>
+							</li>
+						}
+					</ol>
+				</div>
+			</section>
+		}
+	</div>
 </div>
 
 @code {
-    private ElementReference gameContainer;
-    private GameDisplay? gameDisplay;
+	private ElementReference gameContainer;
+	private GameDisplay? gameDisplay;
 
-    Game? game;
-    Player? player;
-    IDisposable? subscription;
-    string pinInput = "0000";
-    bool playerJoined = false;
-    bool hostedGame = false;
+	Game? game;
+	Player? player;
+	IDisposable? subscription;
+	string pinInput = "0000";
+	bool playerJoined = false;
+	bool hostedGame = false;
 
-    string inputName = string.Empty;
+	string inputName = string.Empty;
 
-    string message = string.Empty;
+	string message = string.Empty;
 
-    private async Task StartGame()
-    {
-        if (game == null)
-        {
-            message = "No game to start.";
-            return;
-        }
+	private System.Threading.Timer? uiTimer;
+	private bool mapLoadPending;
 
-        GameResult result = game.Start();
-        if (!result.Success)
-        {
-            message = $"Error starting game: {result.Error}";
-            return;
-        }
+	protected override async Task OnAfterRenderAsync(bool firstRender)
+	{
+		if (mapLoadPending && gameDisplay != null)
+		{
+			mapLoadPending = false;
+			await LoadMap();
+		}
+	}
 
-        await LoadMap();
-    }
+	private string RemainingTimeText
+	{
+		get
+		{
+			if (game?.EndsAt is not { } endsAt) return "--:--";
+			if (game.Phase == GamePhase.Ended) return "00:00";
+			var remaining = endsAt - DateTimeOffset.UtcNow;
+			if (remaining < TimeSpan.Zero) remaining = TimeSpan.Zero;
+			return remaining.ToString(@"mm\:ss");
+		}
+	}
 
-    private void JoinPlayer()
-    {
-        if (game == null || playerJoined) return;
+	private int? RemainingTreasures
+	{
+		get
+		{
+			var board = game?.Board;
+			if (board == null) return null;
+			var count = 0;
+			for (var x = 0; x < board.Size; x++)
+				for (var y = 0; y < board.Size; y++)
+				{
+					var tile = board[new Position(x, y)];
+					if (!tile.IsHole() && tile.HiddenContent() == TileContent.Treasure) count++;
+				}
+			return count;
+		}
+	}
 
-        var result = game.Join(inputName, null);
-        if (result.Success) 
-        { 
-            player = result.Player;
-            playerJoined = true; 
-        }
-        else
-        {
-            message = result.Error.ToString()!;
-        }
-    }
+	private IEnumerable<(Player Player, int Score)> Scoreboard =>
+		game == null
+			? []
+			: game.Players
+				.Select(p => (p, game.StateOf(p.Id)?.Score ?? 0))
+				.OrderByDescending(x => x.Item2)
+				.ToList();
 
-    private string GenerateRandomColor(HashSet<string> usedColors)
-    {
-        Random random = new Random();
+	protected override void OnInitialized()
+	{
+		uiTimer = new System.Threading.Timer(_ =>
+		{
+			if (game?.Phase == GamePhase.Playing)
+				InvokeAsync(StateHasChanged);
+		}, null, TimeSpan.FromSeconds(1), TimeSpan.FromSeconds(1));
+	}
 
-        string color;
+	private async Task StartGame()
+	{
+		if (game == null)
+		{
+			message = "No game to start.";
+			return;
+		}
 
-        do
-        {
-            color = $"#{random.Next(0x1000000):X6}";
-        }
-        while (usedColors.Contains(color));
+		GameResult result = game.Start();
+		if (!result.Success)
+		{
+			message = $"Error starting game: {result.Error}";
+			return;
+		}
 
-        return color;
-    }
+		message = string.Empty;
+		mapLoadPending = true;
+		await LoadMap();
+	}
 
-    void HostGame()
-    {
-        CreateGameResult result = gameRegistry.Create();
+	private void JoinPlayer()
+	{
+		if (game == null || playerJoined) return;
 
-        if (!result.Success)
-        {
-            message = $"Error creating game: {result.Error}";
-            return;
-        }
-        game = result.Game;
-        SubscribeToGame();
-        hostedGame = true;
-    }
+		var result = game.Join(inputName, null);
+		if (result.Success)
+		{
+			player = result.Player;
+			playerJoined = true;
+			message = string.Empty;
+		}
+		else
+		{
+			message = result.Error.ToString()!;
+		}
+	}
 
-    void JoinGame()
-    {
-        if (string.IsNullOrWhiteSpace(pinInput))
-        {
-            message = "Please enter a valid PIN.";
-            return;
-        }
-        if (pinInput.Length < 4 || pinInput.Length > 8)
-        {
-            message = "PIN must contain 4 to 8 digits.";
-            return;
-        }
+	private string GenerateRandomColor(HashSet<string> usedColors)
+	{
+		Random random = new Random();
 
-        Game? joinableGame = gameRegistry.Find(pinInput.ToString());
-        if (joinableGame == null)
-        {
-            message = $"No game found with PIN {pinInput}.";
-            return;
-        }
+		string color;
 
-        game = joinableGame;
-        SubscribeToGame();
-        hostedGame = false;
-    }
+		do
+		{
+			color = $"#{random.Next(0x1000000):X6}";
+		}
+		while (usedColors.Contains(color));
 
-    void LeaveGame()
-    {
-        if (game == null) return;
-        if (player != null)
-        {
-            //game.Leave(player);
-        }
+		return color;
+	}
 
-        if (hostedGame)
-        {
-            //gameRegistry.Remove(game.Pin);
-        }
+	void HostGame()
+	{
+		CreateGameResult result = gameRegistry.Create();
 
-        playerJoined = false;
-        player = null;
-        Dispose();
-        game = null;
-        hostedGame = false;
-        message = "You have left the game.";
-    }
+		if (!result.Success)
+		{
+			message = $"Error creating game: {result.Error}";
+			return;
+		}
+		game = result.Game;
+		SubscribeToGame();
+		hostedGame = true;
+		message = string.Empty;
+	}
 
-    private async Task LoadMap()
-    {
-        if (gameDisplay == null || game == null || !game.Players.Any() || game.Board == null) return;
+	void JoinGame()
+	{
+		if (string.IsNullOrWhiteSpace(pinInput))
+		{
+			message = "Please enter a valid PIN.";
+			return;
+		}
+		if (pinInput.Length < 4 || pinInput.Length > 8)
+		{
+			message = "PIN must contain 4 to 8 digits.";
+			return;
+		}
+
+		Game? joinableGame = gameRegistry.Find(pinInput.ToString());
+		if (joinableGame == null)
+		{
+			message = $"No game found with PIN {pinInput}.";
+			return;
+		}
+
+		game = joinableGame;
+		SubscribeToGame();
+		hostedGame = false;
+		message = string.Empty;
+	}
+
+	void LeaveGame()
+	{
+		if (game == null) return;
+		if (player != null)
+		{
+			//game.Leave(player);
+		}
+
+		if (hostedGame)
+		{
+			//gameRegistry.Remove(game.Pin);
+		}
+
+		playerJoined = false;
+		player = null;
+		Dispose();
+		game = null;
+		gameDisplay = null;
+		hostedGame = false;
+		message = "You have left the game.";
+	}
+
+	private async Task LoadMap()
+	{
+		if (gameDisplay == null || game == null || !game.Players.Any() || game.Board == null) return;
         
-        await gameDisplay.LoadMap(game);
+		await gameDisplay.LoadMap(game);
         
-    }
+	}
 
-    private async Task ToggleFullscreen()
-    {
-        await JS.InvokeVoidAsync(
-            "gameFullscreen.toggle",
-            gameContainer
-        );
-    }
+	private async Task ToggleFullscreen()
+	{
+		await JS.InvokeVoidAsync(
+			"gameFullscreen.toggle",
+			gameContainer
+		);
+	}
 
-    private async Task OnGameChanged()
-    {
-        StateHasChanged();
-        await LoadMap();
-    }
+	private async Task OnGameChanged()
+	{
+		if (gameDisplay == null) mapLoadPending = true;
+		StateHasChanged();
+		await LoadMap();
+	}
 
-    private void SubscribeToGame()
-    {
-        if (game == null) return;
-        subscription?.Dispose();
-        subscription = publishers.For(game).Subscribe(() => InvokeAsync(OnGameChanged));
-    }
+	private void SubscribeToGame()
+	{
+		if (game == null) return;
+		subscription?.Dispose();
+		subscription = publishers.For(game).Subscribe(() => InvokeAsync(OnGameChanged));
+	}
 
-    public void Dispose()
-    {
-        subscription?.Dispose();
-        subscription = null;
-    }
+	public void Dispose()
+	{
+		subscription?.Dispose();
+		subscription = null;
+	}
+
+	void IDisposable.Dispose()
+	{
+		Dispose();
+		uiTimer?.Dispose();
+		uiTimer = null;
+	}
 }
