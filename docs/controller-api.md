@@ -54,6 +54,8 @@ Response on success:
 
 A rule rejection (cooldown, frozen, facing the edge, no round running) is always `200` with `{ "ok": false, "message": "…" }` and **never** includes `light` or `count`. The controller keeps its current light.
 
+Every action response (success or rejection) also includes **`facing`**: the player's current direction as a compass point, `"N"`, `"E"`, `"S"` or `"W"` (up on the screen is `N`). It is omitted when the player has no position yet (before the first round starts).
+
 #### Scan
 
 - **Scanned tile:** the tile directly in front of the player (one step in the facing direction). The player's own tile is not scanned.

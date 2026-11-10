@@ -97,6 +97,32 @@ public class ControllerActionApiTests(WebApplicationFactory<Program> factory) : 
         Assert.True(body.TryGetProperty("message", out _));
     }
 
+    [Theory]
+    [InlineData(Direction.Up, "RIGHT", "E")]
+    [InlineData(Direction.Right, "RIGHT", "S")]
+    [InlineData(Direction.Down, "RIGHT", "W")]
+    [InlineData(Direction.Left, "RIGHT", "N")]
+    [InlineData(Direction.Up, "LEFT", "W")]
+    public async Task Rotate_ReturnsFacingAsCompassPoint(Direction start, string turn, string expected)
+    {
+        var (pin, playerId) = await StartedAsync();
+        GameFor(pin).StateOf(playerId)!.Facing = start;
+
+        var body = await BodyAsync(await ActionAsync(pin, playerId, "rotate", turn));
+
+        Assert.Equal(expected, body.GetProperty("facing").GetString());
+    }
+
+    [Fact]
+    public async Task BeforeRound_OmitsFacing()
+    {
+        var (pin, playerId) = await JoinedAsync();
+
+        var body = await BodyAsync(await ActionAsync(pin, playerId, "scan"));
+
+        Assert.False(body.TryGetProperty("facing", out _));
+    }
+
     [Fact]
     public async Task WrongDevice_Returns403()
     {

@@ -12,18 +12,21 @@ public sealed class Game(string pin, TimeProvider? time = null)
     public const int TREASURE_START_POINTS = 1000;
     public const int POINT_MINE_PENALTY = 25;
     public static readonly TimeSpan FREEZE_DURATION = TimeSpan.FromSeconds(5);
+    public static readonly TimeSpan ROUND_DURATION = TimeSpan.FromMinutes(8);
 
     private readonly TimeProvider _time = time ?? TimeProvider.System;
     private readonly Dictionary<string, Player> _players = [];
     private readonly Dictionary<string, string> _devices = [];
     private readonly Dictionary<string, PlayerState> _states = [];
     private int _treasuresDug;
+    private ITimer? _roundTimer;
 
     public event Action? Changed;
     
     public string Pin { get; } = pin;
     public Board? Board { get; private set; }
     public GamePhase Phase { get; private set; } = GamePhase.Waiting;
+    public DateTimeOffset? EndsAt { get; private set; }
     public IReadOnlyCollection<Player> Players => _players.Values;
 
     public JoinResult Join(string? name, string? deviceId)
@@ -91,13 +94,21 @@ public sealed class Game(string pin, TimeProvider? time = null)
             _states[player.Id] = new PlayerState(spawn.Position, spawn.Facing);
 
         Phase = GamePhase.Playing;
+        EndsAt = _time.GetUtcNow() + ROUND_DURATION;
+        _roundTimer = _time.CreateTimer(_ => End(), null, ROUND_DURATION, Timeout.InfiniteTimeSpan);
         return GameResult.Ok;
     }
 
     public GameResult Act(Player player, PlayerAction action) {
         GameResult result;
-        lock (_gate) result = ActLocked(player, action);
-        if (result.Success) Changed?.Invoke();
+        bool expired;
+        lock (_gate)
+        {
+            // Fallback in case the timer has not fired yet (or a fake TimeProvider is used).
+            expired = Phase == GamePhase.Playing && _time.GetUtcNow() >= EndsAt && EndLocked().Success;
+            result = ActLocked(player, action);
+        }
+        if (result.Success || expired) Changed?.Invoke();
         return result;
     }
 
@@ -227,6 +238,8 @@ public sealed class Game(string pin, TimeProvider? time = null)
     {
         if (Phase != GamePhase.Playing) return GameResult.Fail(GameError.RoundNotPlaying);
         Phase = GamePhase.Ended;
+        _roundTimer?.Dispose();
+        _roundTimer = null;
         return GameResult.Ok;
     }
 
@@ -239,15 +252,13 @@ public sealed class Game(string pin, TimeProvider? time = null)
 
     private GameResult ResetLocked()
     {
-        lock (_gate)
-        {
-            if (Phase == GamePhase.Playing) return GameResult.Fail(GameError.RoundInProgress);
-            Board = null; 
-            _states.Clear();
-            _treasuresDug = 0;
-            Phase = GamePhase.Waiting;
-            return GameResult.Ok;
-        }
+        if (Phase == GamePhase.Playing) return GameResult.Fail(GameError.RoundInProgress);
+        Board = null; 
+        EndsAt = null;
+        _states.Clear();
+        _treasuresDug = 0;
+        Phase = GamePhase.Waiting;
+        return GameResult.Ok;
     }
 
     public PlayerState? StateOf(string playerId) => _states.GetValueOrDefault(playerId);
