@@ -44,12 +44,10 @@
             {
                 Position position = new Position(x, y);
 
-                Console.Write((byte)map[position] + " ");
-
-                tiles[x][y] = (byte)map[position];
+                // Only the visible projection is sent to the browser so undug treasure or
+                // mine positions never reach the client, not even hidden.
+                tiles[x][y] = (byte)map[position].Visible();
             }
-
-            Console.WriteLine();
         }
 
         mapSize = map.Size;

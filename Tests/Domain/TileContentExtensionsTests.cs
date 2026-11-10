@@ -30,4 +30,24 @@ public class TileContentExtensionsTests
     {
         Assert.Equal(TileContent.MineClose1, TileContent.MineClose2.Discovered(1));
     }
+
+    [Theory]
+    [InlineData(TileContent.Treasure, TileContent.Empty)]
+    [InlineData(TileContent.DiscoveredTreasure, TileContent.Empty)]
+    [InlineData(TileContent.FreezeMine, TileContent.Empty)]
+    [InlineData(TileContent.DiscoveredFreezeMine, TileContent.Empty)]
+    [InlineData(TileContent.PointMine, TileContent.Empty)]
+    [InlineData(TileContent.DiscoveredPointMine, TileContent.Empty)]
+    public void Visible_HidesUndugTreasureAndMines(TileContent tile, TileContent expected) =>
+        Assert.Equal(expected, tile.Visible());
+
+    [Theory]
+    [InlineData(TileContent.Empty, TileContent.Empty)]
+    [InlineData(TileContent.Outside, TileContent.Outside)]
+    [InlineData(TileContent.Hole, TileContent.Hole)]
+    [InlineData(TileContent.MineClose0, TileContent.MineClose0)]
+    [InlineData(TileContent.MineClose3, TileContent.MineClose3)]
+    [InlineData(TileContent.MineClose8, TileContent.MineClose8)]
+    public void Visible_KeepsDugTilesHolesAndScanNumbers(TileContent tile, TileContent expected) =>
+        Assert.Equal(expected, tile.Visible());
 }
