@@ -136,6 +136,7 @@ else
             return;
         }
         game = result.Game;
+        game!.Changed += async () => await OnGameChanged();
         hostedGame = true;
     }
 
@@ -158,8 +159,9 @@ else
             message = $"No game found with PIN {pinInput}.";
             return;
         }
-        
+
         game = joinableGame;
+        game!.Changed += async () => await OnGameChanged();
         hostedGame = false;
     }
 
@@ -178,6 +180,7 @@ else
 
         playerJoined = false;
         player = null;
+        Dispose();
         game = null;
         hostedGame = false;
         message = "You have left the game.";
@@ -197,5 +200,18 @@ else
             "gameFullscreen.toggle",
             gameContainer
         );
+    }
+
+    private async Task OnGameChanged()
+    {
+        await LoadMap();
+    }
+
+    public void Dispose()
+    {
+        if (game != null)
+        {
+            game.Changed -= async () => await OnGameChanged();
+        }
     }
 }
