@@ -44,7 +44,7 @@
             {
                 Position position = new Position(x, y);
 
-                // Only the visible projection is sent to the browser so undug treasure or
+                // Only the visible projection is sent to the browser so treasure and undiscovered
                 // mine positions never reach the client, not even hidden.
                 tiles[x][y] = (byte)map[position].Visible();
             }
