@@ -8,7 +8,8 @@ using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
-builder.Services.AddRazorComponents().AddInteractiveServerComponents();
+builder.Services.AddRazorComponents()
+    .AddInteractiveServerComponents(o => o.DetailedErrors = true);
 builder.Services.AddSingleton<GameRegistry>();
 builder.Services.AddInfrastructure();
 builder.Services.AddOpenApi();
