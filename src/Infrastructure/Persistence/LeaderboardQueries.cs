@@ -63,4 +63,27 @@ public sealed class LeaderboardQueries(TreasureSweeperDbContext db) : ILeaderboa
 			.ToListAsync(ct);
 		return rows.Select(x => new PlayerStatResponse(x.Name, x.Best ?? 0)).ToList();
 	}
+
+	public async Task<IReadOnlyList<RoundSummaryResponse>> GetRecentRoundsAsync(
+		int limit = 20, CancellationToken ct = default)
+	{
+		limit = Math.Clamp(limit, 1, 100);
+		var rows = await db.Rounds
+			.AsNoTracking()
+			.OrderByDescending(r => r.EndedAt)
+			.Take(limit)
+			.Select(r => new
+			{
+				r.Id, r.EndedAt, r.PlayerCount, r.EndReason,
+				Winner = r.PlayerResults
+					.OrderBy(p => p.Placement)
+					.Select(p => new { p.Player.Name, p.Score })
+					.FirstOrDefault()
+			})
+			.ToListAsync(ct);
+		return rows.Select(r => new RoundSummaryResponse(
+			r.Id, r.EndedAt, r.PlayerCount, r.EndReason,
+			r.Winner != null ? r.Winner.Name : null,
+			r.Winner != null ? r.Winner.Score : 0)).ToList();
+	}
 }

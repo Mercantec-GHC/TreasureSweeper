@@ -1,65 +1,70 @@
-﻿@page "/"
+@page "/"
 @using Shared.Leaderboard
 @using Infrastructure.Persistence
 @inject ILeaderboardQueries Queries
 
 <PageTitle>Leaderboard</PageTitle>
 
-<h1>Leaderboard</h1>
-<button class="btn btn-sm btn-outline-secondary mb-3" @onclick="Load">Refresh</button>
+<div class="retro">
+    <h1>Treasure Sweeper</h1>
 
-@if (error is not null)
-{
-    <div class="alert alert-warning">@error</div>
-}
-else if (scores is null)
-{
-    <p>Loading…</p>
-}
-else
-{
-    <h2 class="h5">Top scores</h2>
-    <table class="table table-striped" style="max-width: 640px;">
-        <thead><tr><th>#</th><th>Player</th><th class="text-end">Score</th><th>When</th></tr></thead>
-        <tbody>
-            @for (var i = 0; i < scores.Count; i++)
-            {
-                <tr>
-                    <td>@(i + 1)</td>
-                    <td>@scores[i].PlayerName</td>
-                    <td class="text-end">@scores[i].Score</td>
-                    <td>@scores[i].AchievedAt.LocalDateTime.ToString("g")</td>
-                </tr>
-            }
-            @if (scores.Count == 0)
-            {
-                <tr><td colspan="4" class="text-muted">No rounds yet.</td></tr>
-            }
-        </tbody>
-    </table>
+    <div class="retro-tabs">
+        <span class="retro-tab active">Leaderboard</span>
+        <a class="retro-tab" href="history">History</a>
+    </div>
 
-    <h2 class="h5">Most treasures</h2>
-    <table class="table table-striped" style="max-width: 420px;">
-        <thead><tr><th>#</th><th>Player</th><th class="text-end">Treasures</th></tr></thead>
-        <tbody>
-            @for (var i = 0; i < treasures!.Count; i++)
-            {
-                <tr><td>@(i + 1)</td><td>@treasures[i].PlayerName</td><td class="text-end">@treasures[i].Value</td></tr>
-            }
-        </tbody>
-    </table>
+    <button class="retro-btn" @onclick="Load">Refresh</button>
 
-    <h2 class="h5">Fewest steps to a treasure</h2>
-    <table class="table table-striped" style="max-width: 420px;">
-        <thead><tr><th>#</th><th>Player</th><th class="text-end">Steps</th></tr></thead>
-        <tbody>
-            @for (var i = 0; i < steps!.Count; i++)
-            {
-                <tr><td>@(i + 1)</td><td>@steps[i].PlayerName</td><td class="text-end">@steps[i].Value</td></tr>
-            }
-        </tbody>
-    </table>
-}
+    @if (error is not null)
+    {
+        <p class="muted">@error</p>
+    }
+    else if (scores is null)
+    {
+        <p>Loading…</p>
+    }
+    else
+    {
+        <h2>Top scores</h2>
+        <table>
+            <thead><tr><th>#</th><th>Player</th><th class="num">Score</th><th>When</th></tr></thead>
+            <tbody>
+                @for (var i = 0; i < scores.Count; i++)
+                {
+                    <tr>
+                        <td>@(i + 1)</td>
+                        <td>@scores[i].PlayerName</td>
+                        <td class="num">@scores[i].Score</td>
+                        <td>@scores[i].AchievedAt.LocalDateTime.ToString("g")</td>
+                    </tr>
+                }
+                @if (scores.Count == 0) { <tr><td colspan="4" class="muted">No rounds yet.</td></tr> }
+            </tbody>
+        </table>
+
+        <h2>Most treasures</h2>
+        <table>
+            <thead><tr><th>#</th><th>Player</th><th class="num">Treasures</th></tr></thead>
+            <tbody>
+                @for (var i = 0; i < treasures!.Count; i++)
+                {
+                    <tr><td>@(i + 1)</td><td>@treasures[i].PlayerName</td><td class="num">@treasures[i].Value</td></tr>
+                }
+            </tbody>
+        </table>
+
+        <h2>Fewest steps to a treasure</h2>
+        <table>
+            <thead><tr><th>#</th><th>Player</th><th class="num">Steps</th></tr></thead>
+            <tbody>
+                @for (var i = 0; i < steps!.Count; i++)
+                {
+                    <tr><td>@(i + 1)</td><td>@steps[i].PlayerName</td><td class="num">@steps[i].Value</td></tr>
+                }
+            </tbody>
+        </table>
+    }
+</div>
 
 @code {
     IReadOnlyList<LeaderboardEntryResponse>? scores;
