@@ -87,7 +87,7 @@
             drawTileNumber(x, y);
         }
 
-        function drawPlayers() {
+        function drawPlayer() {
             for (const player of players) {
                 const pixelX = player.x * tileSize;
                 const pixelY = player.y * tileSize;
