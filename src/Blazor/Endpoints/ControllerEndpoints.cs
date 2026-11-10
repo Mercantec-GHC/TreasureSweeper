@@ -2,7 +2,6 @@ using API.Mapping;
 using Domain.Boards;
 using Domain.Games;
 using Microsoft.AspNetCore.Http.HttpResults;
-using Microsoft.AspNetCore.Mvc;
 using Shared.Controller;
 using System.Diagnostics.CodeAnalysis;
 

@@ -1,0 +1,56 @@
+@page "/history"
+@using Shared.Leaderboard
+@using Infrastructure.Persistence
+@inject ILeaderboardQueries Queries
+
+<PageTitle>History</PageTitle>
+
+<div class="retro">
+    <h1>Treasure Sweeper</h1>
+
+    <div class="retro-tabs">
+        <a class="retro-tab" href="">Leaderboard</a>
+        <span class="retro-tab active">History</span>
+    </div>
+
+    @if (error is not null)
+    {
+        <p class="muted">@error</p>
+    }
+    else if (rounds is null)
+    {
+        <p>Loading…</p>
+    }
+    else
+    {
+        <h2>Previous rounds</h2>
+        <table>
+            <thead><tr><th>When</th><th class="num">Players</th><th>Winner</th><th class="num">Score</th><th>Ended</th><th></th></tr></thead>
+            <tbody>
+                @foreach (var r in rounds)
+                {
+                    <tr>
+                        <td>@r.EndedAt.LocalDateTime.ToString("g")</td>
+                        <td class="num">@r.PlayerCount</td>
+                        <td>@(r.WinnerName ?? "—")</td>
+                        <td class="num">@r.WinnerScore</td>
+                        <td>@r.EndReason</td>
+                        <td><a class="retro-btn" href="@($"round/{r.Id}")">View</a></td>
+                    </tr>
+                }
+                @if (rounds.Count == 0) { <tr><td colspan="6" class="muted">No rounds played yet.</td></tr> }
+            </tbody>
+        </table>
+    }
+</div>
+
+@code {
+    IReadOnlyList<RoundSummaryResponse>? rounds;
+    string? error;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try { rounds = await Queries.GetRecentRoundsAsync(20); error = null; }
+        catch { error = "History unavailable — is the database running?"; rounds = []; }
+    }
+}
