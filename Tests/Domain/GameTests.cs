@@ -43,6 +43,44 @@ public class GameTests
     }
 
     [Fact]
+    public void Act_AfterRoundDuration_EndReasonIsTimeUp()
+    {
+        var time = new Tests.Support.FakeTime();
+        var game = new Game("1234", time);
+        var player = game.Join("P1", "DEV_1").Player!;
+        game.Start(new Random(1));
+
+        time.Advance(Game.ROUND_DURATION);
+        game.Act(player, new PlayerAction(ActionKind.Scan));
+
+        Assert.Equal(Shared.Games.RoundEndReason.TimeUp, game.EndReason);
+    }
+
+    [Fact]
+    public void Start_TreasuresLeftIsPositiveAndEndReasonNull()
+    {
+        var game = GameWithPlayers(1);
+
+        game.Start(new Random(1));
+
+        Assert.True(game.TreasuresLeft > 0);
+        Assert.Null(game.EndReason);
+    }
+
+    [Fact]
+    public void Reset_ClearsEndReasonAndTreasures()
+    {
+        var game = GameWithPlayers(1);
+        game.Start(new Random(1));
+        game.End();
+
+        game.Reset();
+
+        Assert.Null(game.EndReason);
+        Assert.Equal(0, game.TreasuresLeft);
+    }
+
+    [Fact]
     public void Act_SuccessfulAction_RaisesChanged()
     {
         var game = new Game("1234");

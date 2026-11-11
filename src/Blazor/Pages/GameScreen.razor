@@ -101,6 +101,66 @@
 				</div>
 			</section>
 		}
+
+		@if (game?.Phase == GamePhase.Ended && !gameOverDismissed)
+		{
+			var ranking = Scoreboard.ToList();
+			var winner = ranking.FirstOrDefault();
+			<div class="game-over-overlay">
+				<div class="game-over-panel">
+					<div class="banner">
+						<div class="game-over-title">Game Over</div>
+						@if (game.EndReason == Shared.Games.RoundEndReason.AllTreasuresFound)
+						{
+							<div class="sub">All treasures found!</div>
+							@if (winner.Player != null)
+							{
+								<div class="crown">👑</div>
+								<div class="name" style="color: @winner.Player.Color">@winner.Player.Name</div>
+								<div class="sub">wins with @winner.Score points</div>
+							}
+						}
+						else
+						{
+							<div class="sub">Time's up!</div>
+						}
+					</div>
+
+					<table>
+						<thead>
+							<tr>
+								<th>#</th>
+								<th>Player</th>
+								<th class="num">Score</th>
+								<th class="num">Treasures</th>
+								<th class="num">Point mines</th>
+								<th class="num">Freeze mines</th>
+							</tr>
+						</thead>
+						<tbody>
+							@for (var i = 0; i < ranking.Count; i++)
+							{
+								var (p, score) = ranking[i];
+								var state = game.StateOf(p.Id);
+								<tr class="@(i == 0 ? "winner-row" : "")">
+									<td>@(i + 1)</td>
+									<td style="color: @p.Color">@p.Name</td>
+									<td class="num">@score</td>
+									<td class="num">@(state?.TreasuresFound ?? 0)</td>
+									<td class="num">@(state?.PointMinesHit ?? 0)</td>
+									<td class="num">@(state?.FreezeMinesHit ?? 0)</td>
+								</tr>
+							}
+						</tbody>
+					</table>
+
+					<div class="actions">
+						<button class="btn btn-primary" @onclick="() => gameOverDismissed = true">Show Map</button>
+						<button class="btn btn-primary" @onclick="LeaveGame">Leave Game</button>
+					</div>
+				</div>
+			</div>
+		}
 	</div>
 </div>
 
@@ -121,6 +181,7 @@
 
 	private System.Threading.Timer? uiTimer;
 	private bool mapLoadPending;
+	private bool gameOverDismissed;
 
 	protected override async Task OnAfterRenderAsync(bool firstRender)
 	{
