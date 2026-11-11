@@ -23,6 +23,9 @@ public class DigTests
         for (var y = 0; y < game.Board.Size; y++)
             game.Board.Set(new(x, y), TileContent.Empty);
 
+        // Spare treasure far away so digging a single treasure does not end the round.
+        game.Board.Set(new(game.Board.Size - 1, game.Board.Size - 1), TileContent.Treasure);
+
         foreach (var p in joined)
         {
             var state = game.StateOf(p.Id)!;
@@ -52,6 +55,33 @@ public class DigTests
         Assert.Equal(Game.TREASURE_START_POINTS, state.Score);
         Assert.Equal(1, state.TreasuresFound);
         Assert.Equal(TileContent.Hole, game.Board[IN_FRONT]);
+    }
+
+    [Fact]
+    public void Dig_LastTreasure_EndsRoundWithAllTreasuresFound()
+    {
+        var (game, player, _, _) = StartedSolo();
+        game.Board!.Set(new(game.Board.Size - 1, game.Board.Size - 1), TileContent.Empty);
+        game.Board.Set(IN_FRONT, TileContent.Treasure);
+
+        game.Act(player, DIG);
+
+        Assert.Equal(GamePhase.Ended, game.Phase);
+        Assert.Equal(Shared.Games.RoundEndReason.AllTreasuresFound, game.EndReason);
+        Assert.Equal(0, game.TreasuresLeft);
+    }
+
+    [Fact]
+    public void Dig_TreasureWithOthersLeft_KeepsRoundPlaying()
+    {
+        var (game, player, _, _) = StartedSolo();
+        game.Board!.Set(IN_FRONT, TileContent.Treasure);
+
+        game.Act(player, DIG);
+
+        Assert.Equal(GamePhase.Playing, game.Phase);
+        Assert.Null(game.EndReason);
+        Assert.Equal(1, game.TreasuresLeft);
     }
 
     [Fact]

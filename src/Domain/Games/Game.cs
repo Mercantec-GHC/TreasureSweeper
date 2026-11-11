@@ -1,4 +1,5 @@
 using Domain.Boards;
+using RoundEndReason = Shared.Games.RoundEndReason;
 
 namespace Domain.Games;
 
@@ -27,6 +28,8 @@ public sealed class Game(string pin, TimeProvider? time = null)
     public Board? Board { get; private set; }
     public GamePhase Phase { get; private set; } = GamePhase.Waiting;
     public DateTimeOffset? EndsAt { get; private set; }
+    public RoundEndReason? EndReason { get; private set; }
+    public int TreasuresLeft => Board == null ? 0 : CountTreasures(Board);
     public IReadOnlyCollection<Player> Players => _players.Values;
 
     public JoinResult Join(string? name, string? deviceId)
@@ -90,25 +93,30 @@ public sealed class Game(string pin, TimeProvider? time = null)
 
         _states.Clear();
         _treasuresDug = 0;
+        EndReason = null;
         foreach (var (player, spawn) in _players.Values.Zip(Board.Spawns))
             _states[player.Id] = new PlayerState(spawn.Position, spawn.Facing);
 
         Phase = GamePhase.Playing;
         EndsAt = _time.GetUtcNow() + ROUND_DURATION;
-        _roundTimer = _time.CreateTimer(_ => End(), null, ROUND_DURATION, Timeout.InfiniteTimeSpan);
+        _roundTimer = _time.CreateTimer(_ => End(RoundEndReason.TimeUp), null, ROUND_DURATION, Timeout.InfiniteTimeSpan);
         return GameResult.Ok;
     }
 
     public GameResult Act(Player player, PlayerAction action) {
         GameResult result;
         bool expired;
+        bool finished;
         lock (_gate)
         {
             // Fallback in case the timer has not fired yet (or a fake TimeProvider is used).
-            expired = Phase == GamePhase.Playing && _time.GetUtcNow() >= EndsAt && EndLocked().Success;
+            expired = Phase == GamePhase.Playing && _time.GetUtcNow() >= EndsAt && EndLocked(RoundEndReason.TimeUp).Success;
             result = ActLocked(player, action);
+            finished = result.Success && Phase == GamePhase.Playing && result.Dig?.Found == TileContent.Treasure
+                && CountTreasures(Board!) == 0
+                && EndLocked(RoundEndReason.AllTreasuresFound).Success;
         }
-        if (result.Success || expired) Changed?.Invoke();
+        if (result.Success || expired || finished) Changed?.Invoke();
         return result;
     }
 
@@ -230,17 +238,20 @@ public sealed class Game(string pin, TimeProvider? time = null)
         return points;
     }
 
-    public GameResult End() {
+    public GameResult End() => End(RoundEndReason.TimeUp);
+
+    private GameResult End(RoundEndReason reason) {
         GameResult result;
-        lock (_gate) result = EndLocked();
+        lock (_gate) result = EndLocked(reason);
         if (result.Success) Changed?.Invoke();
         return result;
     }
 
-    private GameResult EndLocked()
+    private GameResult EndLocked(RoundEndReason reason)
     {
         if (Phase != GamePhase.Playing) return GameResult.Fail(GameError.RoundNotPlaying);
         Phase = GamePhase.Ended;
+        EndReason = reason;
         _roundTimer?.Dispose();
         _roundTimer = null;
         return GameResult.Ok;
@@ -260,8 +271,18 @@ public sealed class Game(string pin, TimeProvider? time = null)
         EndsAt = null;
         _states.Clear();
         _treasuresDug = 0;
+        EndReason = null;
         Phase = GamePhase.Waiting;
         return GameResult.Ok;
+    }
+
+    private static int CountTreasures(Board board)
+    {
+        var count = 0;
+        for (var x = 0; x < board.Size; x++)
+            for (var y = 0; y < board.Size; y++)
+                if (board[new Position(x, y)].HiddenContent() == TileContent.Treasure) count++;
+        return count;
     }
 
     public PlayerState? StateOf(string playerId) => _states.GetValueOrDefault(playerId);
