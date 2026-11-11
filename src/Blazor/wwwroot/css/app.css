@@ -61,7 +61,7 @@ a, .btn-link {
 }
 
 .btn:focus, .btn:active:focus, .btn-link.nav-link:focus, .form-control:focus, .form-check-input:focus {
-  box-shadow: 0 0 0 0.1rem white, 0 0 0 0.25rem #258cfb;
+    box-shadow: 0 0 0 0.1rem white, 0 0 0 0.25rem #258cfb;
 }
 
 .content {
@@ -157,13 +157,4 @@ code {
 
 .form-floating > .form-control-plaintext:focus::placeholder, .form-floating > .form-control:focus::placeholder {
     text-align: start;
-}
-
-.container-fluid .navbar-brand {
-    font-family: 'Press Start 2P', monospace;
-    font-size: 1.4rem;
-    color: #ffd23f;
-    text-shadow: 3px 3px 0 #ff2e88;
-    text-transform: uppercase;
-    margin: 0 0 1rem;
 }

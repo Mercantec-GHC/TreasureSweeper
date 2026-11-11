@@ -97,13 +97,16 @@ See [database.md](database.md) for the schema.
 
 | Done | Not yet |
 | ---- | ------- |
-| Board generation, treasure formula, safe radius, start positions | Round timer, winner and tie-break |
-| Lobby, joining and reconnecting | Saving round results, player names |
-| Starting a round from the lobby | Ending the round when the last treasure is dug |
-| Database schema and migrations | Controller LEDs in the firmware |
+| Board generation, treasure formula, safe radius, start positions | Tie-break and shared placement |
+| Lobby, joining and reconnecting | Saving finished rounds (only dev seed data so far) |
+| Starting a round from the lobby | Green "won" light on the controller |
+| Round timer (8 minutes) and ending when the last treasure is dug | |
+| Database schema, migrations, leaderboard and history pages | |
 | Move (turn, then step) and scan (tile in front, red light, count) | |
 | Dig (tile in front, treasure scoring, holes, yellow light, score on screen) | |
 | Mines (dig or step on unscanned: point penalty, freeze, purple/blue light, holes) | |
+| Live scoreboard, countdown and treasures left on the game screen | |
+| Game over screen with winner and leaderboard | |
 
 ## Open questions
 

@@ -4,13 +4,90 @@ A multiplayer "treasure hunt meets Minesweeper" party game for up to 8 players. 
 
 It is a single ASP.NET Core application on **.NET 10** that serves a **Blazor Server** UI and the HTTP endpoints the Oplà controllers talk to. Both run in the same process and share the same live game state.
 
+## ▶ Quick start: get a game running
+
+The short version for a game night. Details are in the sections further down.
+
+### 1. Start the database, API and Blazor
+
+1. Install the [.NET 10 SDK](https://dotnet.microsoft.com/download/dotnet/10.0) and Docker Desktop.
+2. Once per clone: `Copy-Item .env.example .env`, set `POSTGRES_PASSWORD`, and give the app its connection string (see [Database](#database)).
+3. Start PostgreSQL:
+   ```powershell
+   docker compose -f docker-compose.yml -f docker-compose.local.yml up -d database
+   ```
+4. Apply migrations (first time and after pulling new ones):
+   ```powershell
+   dotnet ef database update --project src/Infrastructure --startup-project src/Blazor
+   ```
+5. Start the app. The API and the Blazor UI are the same process:
+   ```powershell
+   .\run.ps1
+   ```
+   Game screen: https://localhost:7033. Controller API: `http://<PC-IP>:5288/api/controller/...`
+
+The game itself runs without a database. Only the leaderboard and history need it.
+
+### 2. Flash and configure an Oplà controller
+
+1. Install the [Arduino IDE](https://www.arduino.cc/en/software), the board package **Arduino SAMD Boards** (the Oplà is an MKR WiFi 1010), and the libraries `Arduino_MKRIoTCarrier`, `WiFiNINA`, `ArduinoJson` and `ArduinoHttpClient`.
+2. Open `Arduino/Arduino.ino` and edit `Arduino/config.h`:
+
+   | Setting | Meaning |
+   | ------- | ------- |
+   | `WIFI_SSID`, `WIFI_PASS` | The Wi-Fi network the controller joins |
+   | `PLAYER_NAME` | Name shown on the screen (empty gives `Arduino <number>`) |
+   | `GAME_PIN` | The PIN of the game this controller joins |
+   | `SERVER_HOST`, `SERVER_PORT` | The backend. Deployed: `treasuresweeper.mercantec.tech` on `443` |
+   | `GAME_PATH` | Path prefix in front of `/api/...`. Empty for this game |
+   | `USE_CASE` | `true` if the Oplà is in its plastic case (adjusts touch sensitivity) |
+   | `HEARTBEAT_MS` | How often the controller says "still here" (2000 ms) |
+
+3. Select board **Arduino MKR WiFi 1010** and its port, then press **Upload**.
+4. On power-up the controller connects to Wi-Fi, joins the game with `GAME_PIN` and keeps the session alive. If it can't join yet (for example the game doesn't exist), it keeps trying.
+
+The firmware talks HTTPS (`WiFiSSLClient`). The protocol is described in [docs/controller-api.md](docs/controller-api.md).
+
+**No hardware?** [tools/ControllerSimulator](tools/ControllerSimulator/README.md) pretends to be 1–8 controllers from the keyboard.
+
+### 3. Create a game, join controllers and start a round
+
+1. **Create the game with the controllers' PIN.** Every controller has a fixed `GAME_PIN`, so the game must use that PIN:
+   ```http
+   POST /api/games?pin=1515
+   ```
+   Use Swagger (`/swagger`) or `src/Blazor/API.http`. (**Host Game** on the Game Screen creates a game with a random PIN. That only works for controllers flashed with that PIN, or for the simulator with `--pin`.)
+2. **Open the Game Screen** (`/game-screen`), type the PIN and press **Join Game**. The lobby lists the players.
+3. **Turn on the controllers.** Each one joins by itself and appears in the lobby. Up to 8 players; joining closes when the round starts.
+4. **Start the round** with `POST /api/games/{pin}/start` (or **Start Game** on the screen if you hosted it there). The round lasts 8 minutes or until the last treasure is dug up.
+5. **Next round:** `POST /api/games/{pin}/reset` returns to the lobby and keeps the players.
+
+### 4. Controller button mapping
+
+| Touch pad | Action | Notes |
+| --------- | ------ | ----- |
+| **0** | Scan | Scans the tile in front: shows its content or the number of mines around it |
+| **1** | Turn left | 90° |
+| **2** | Move | One step forward in the facing direction |
+| **3** | Turn right | 90° |
+| **4** | Dig | Digs the tile in front |
+
+| Light | Meaning |
+| ----- | ------- |
+| Red | Scan: a mine is on the tile in front |
+| Yellow | Dig: treasure found |
+| Purple | Point mine set off (−25) |
+| Blue | Freeze mine set off: frozen for 5 s |
+
+The full rules are in [docs/game-rules.md](docs/game-rules.md). The home page of the app shows a short player-friendly version.
+
 ## Tech Stack
 
 | Layer      | Project        | Technology / purpose                                                          |
 | ---------- | -------------- | ----------------------------------------------------------------------------- |
 | Web host   | `src/Blazor`   | Blazor Server UI **and** minimal-API endpoints for the Oplà (one process)     |
 | Domain     | `src/Domain`   | Game rules: lobby, players, board, treasure/mine placement. No web code       |
-| Persistence| `src/Infrastructure` | EF Core + Npgsql (PostgreSQL): `DbContext` and health check. Migrations and repositories come later |
+EF Core + Npgsql (PostgreSQL): `DbContext`, migrations, round results, leaderboard queries and health check |
 | Contracts  | `src/Shared`   | Plain DTO records for the Oplà JSON contract. No dependencies                 |
 | Controller | `Arduino`      | Firmware for the Arduino Oplà controller                                      |
 | Tests      | `Tests`        | xUnit unit tests (Domain) and integration tests (HTTP endpoints)              |
@@ -36,9 +113,9 @@ It is a single ASP.NET Core application on **.NET 10** that serves a **Blazor Se
 Project references:
 
 ```
-Blazor ──► Domain
+Blazor ──► Domain ──► Shared
    ├─────► Shared
-   └─────► Infrastructure
+   └─────► Infrastructure ──► Domain, Shared
 Tests  ──► Blazor, Domain, Shared
 ```
 
@@ -58,7 +135,7 @@ TreasureSweeper/
     │   ├── Mapping/          # Domain → Shared DTO mapping (namespace API.Mapping)
     │   └── API.http          # Manual requests for every endpoint
     ├── Infrastructure/       # Database access (EF Core + PostgreSQL) — no web or UI code
-    ├── Domain/               # Game logic — no project references
+    ├── Domain/               # Game logic — references only Shared
     └── Shared/               # DTOs — no project references, no ASP.NET dependencies
 ```
 
@@ -162,7 +239,7 @@ PostgreSQL runs in Docker. The app talks to it through EF Core (`src/Infrastruct
 **One-time setup (per developer)**
 
 1. Copy `.env.example` to `.env` (`Copy-Item .env.example .env`) and set your own `POSTGRES_PASSWORD`. `.env` is git-ignored, so every clone needs its own; never commit it.
-2. Start the database: `docker compose up -d`
+2. Start the database: `docker compose -f docker-compose.yml -f docker-compose.local.yml up -d database` (the base file alone joins the Dokploy server network, which doesn't exist locally)
 3. Check it: `docker compose ps` should show `healthy`.
 4. Give the app its connection string, using the same user, password, database and port as your `.env`:
    ```powershell
@@ -185,7 +262,7 @@ Install the tool once: `dotnet tool install --global dotnet-ef`
 | Create a migration after changing entities or configurations | `dotnet ef migrations add <Name> --project src/Infrastructure --startup-project src/Blazor --output-dir Persistence/Migrations` |
 | Undo the latest migration (only if not pushed) | `dotnet ef migrations remove --project src/Infrastructure --startup-project src/Blazor` |
 | Check that the model matches the migrations | `dotnet ef migrations has-pending-model-changes --project src/Infrastructure --startup-project src/Blazor` |
-| Reset your local database | `docker compose down -v`, `docker compose up -d`, then `database update` |
+| Reset your local database | `docker compose -f docker-compose.yml -f docker-compose.local.yml down -v`, start it again, then `database update` |
 
 Rules:
 - Run `database update` after pulling new migrations.
@@ -197,14 +274,14 @@ Rules:
 
 | Command | What it does |
 | ------- | ------------ |
-| `docker compose up -d` / `docker compose down` | Start / stop the database. The data is kept in the `pgdata` volume |
+| `docker compose -f docker-compose.yml -f docker-compose.local.yml up -d database` / `... down` | Start / stop the database. The data is kept in the `pgdata` volume |
 | `docker compose down -v` | Stop **and delete** all data (also needed after changing `POSTGRES_*` in `.env`) |
 | `docker compose logs database` | Show the database log |
 
 **Notes**
 - The connection string is read the first time the database is needed, so the app starts, and the tests run, without a database. `/health` returns `503 Unhealthy` until it is configured and reachable.
 - Only the `Default` connection string is used. Never commit passwords or real connection strings.
-- The schema, migrations and seed data are not part of this setup yet.
+- In Development the app seeds a few example rounds into an empty database, so the leaderboard has something to show.
 
 ## Tests
 
