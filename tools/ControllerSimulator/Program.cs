@@ -157,10 +157,10 @@ async Task HeartbeatAsync(Player p)
         var phaseBefore = p.Phase; var scoreBefore = p.Score;
         p.Phase = GetString(root, "phase") ?? p.Phase;
         if (root.TryGetProperty("score", out var s) && s.ValueKind == JsonValueKind.Number) p.Score = s.GetInt32();
-        if (root.TryGetProperty("light", out var l)) p.Light = l.GetString() ?? p.Light;
+        if (root.TryGetProperty("event", out var l)) p.Event = l.GetString() ?? p.Event;
         if (root.TryGetProperty("frozenMilliseconds", out var fz) && fz.ValueKind == JsonValueKind.Number) p.FrozenMs = fz.GetInt32();
         if (p.Phase != phaseBefore || p.Score != scoreBefore)
-            Log($"[#{p.Number} {p.Name}] phase={p.Phase} score={p.Score} light={p.Light}");
+            Log($"[#{p.Number} {p.Name}] phase={p.Phase} score={p.Score} event={p.Event}");
     }
     catch { /* transient; ignore */ }
 }
@@ -182,7 +182,7 @@ async Task ActionAsync(Player p, string action, string? direction = null)
         if (!GetBool(root, "ok")) { Log($"[#{p.Number}] {action}{Dir(direction)} refused: {GetString(root, "error")}"); return; }
 
         if (root.TryGetProperty("score", out var s) && s.ValueKind == JsonValueKind.Number) p.Score = s.GetInt32();
-        if (root.TryGetProperty("light", out var l)) p.Light = l.GetString() ?? p.Light;
+        if (root.TryGetProperty("event", out var l)) p.Event = l.GetString() ?? p.Event;
         var result = GetString(root, "result") ?? action;
         var extra = "";
         if (root.TryGetProperty("scan", out var scan))
@@ -192,7 +192,7 @@ async Task ActionAsync(Player p, string action, string? direction = null)
             var near = GetBool(scan, "treasureNear");
             extra = $" scan[mine={mine} around={around} treasureNear={near}]";
         }
-        Log($"[#{p.Number} {p.Name}] {action}{Dir(direction)} -> {result} score={p.Score} light={p.Light}{extra}");
+        Log($"[#{p.Number} {p.Name}] {action}{Dir(direction)} -> {result} score={p.Score} event={p.Event}{extra}");
     }
     catch (Exception ex) { Log($"[#{p.Number}] {action} error: {ex.Message}"); }
 }
@@ -232,9 +232,9 @@ void PrintStatusTable()
     {
         Console.WriteLine();
         Console.WriteLine($"  PIN {pin}   ({players.Count} controllers)");
-        Console.WriteLine("  #  Name        Score  Phase     Light    Frozen");
+        Console.WriteLine("  #  Name        Score  Phase     Event       Frozen");
         foreach (var p in players)
-            Console.WriteLine($"  {p.Number,-2} {p.Name,-11} {p.Score,5}  {p.Phase,-8}  {p.Light,-7}  {(p.FrozenMs > 0 ? p.FrozenMs + "ms" : "-")}");
+            Console.WriteLine($"  {p.Number,-2} {p.Name,-11} {p.Score,5}  {p.Phase,-8}  {p.Event,-10}  {(p.FrozenMs > 0 ? p.FrozenMs + "ms" : "-")}");
         Console.WriteLine();
     }
 }
@@ -257,6 +257,6 @@ sealed class Player
     public required string PlayerId { get; set; }
     public int Score { get; set; }
     public string Phase { get; set; } = "?";
-    public string Light { get; set; } = "off";
+    public string Event { get; set; } = "none";
     public int FrozenMs { get; set; }
 }
