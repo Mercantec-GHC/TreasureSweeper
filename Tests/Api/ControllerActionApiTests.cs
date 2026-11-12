@@ -193,7 +193,7 @@ public class ControllerActionApiTests(WebApplicationFactory<Program> factory) : 
     }
 
     [Fact]
-    public async Task Scan_MineInFront_ReturnsRedLight()
+    public async Task Scan_MineInFront_ReturnsMineAheadEvent()
     {
         var (pin, playerId) = await StartedAsync();
         var game = GameFor(pin);
@@ -203,13 +203,13 @@ public class ControllerActionApiTests(WebApplicationFactory<Program> factory) : 
         var body = await (await ActionAsync(pin, playerId, "scan")).Content.ReadFromJsonAsync<JsonElement>();
 
         Assert.True(body.GetProperty("ok").GetBoolean());
-        Assert.Equal("red", body.GetProperty("light").GetString());
+        Assert.Equal("mineAhead", body.GetProperty("event").GetString());
     }
 
     [Theory]
     [InlineData(0)]
     [InlineData(2)]
-    public async Task Scan_SafeTile_ReturnsLightOffAndCount(int mines)
+    public async Task Scan_SafeTile_ReturnsClearAheadAndCount(int mines)
     {
         var (pin, playerId) = await StartedAsync();
         var (game, state, tile) = PrepareInFront(pin, playerId, TileContent.Empty);
@@ -219,25 +219,25 @@ public class ControllerActionApiTests(WebApplicationFactory<Program> factory) : 
         var body = await BodyAsync(await ActionAsync(pin, playerId, "scan"));
 
         Assert.True(body.GetProperty("ok").GetBoolean());
-        Assert.Equal("off", body.GetProperty("light").GetString());
+        Assert.Equal("clearAhead", body.GetProperty("event").GetString());
         Assert.Equal(mines, body.GetProperty("count").GetInt32()); // 0 must be sent, not omitted
     }
 
     [Theory]
     [InlineData("move", null)]
     [InlineData("rotate", "LEFT")]
-    public async Task NonScanActions_HaveNoLightOrCount(string action, string? direction)
+    public async Task NonScanActions_HaveNoEventOrCount(string action, string? direction)
     {
         var (pin, playerId) = await StartedAsync();
 
         var body = await BodyAsync(await ActionAsync(pin, playerId, action, direction));
 
-        Assert.False(body.TryGetProperty("light", out _));
+        Assert.False(body.TryGetProperty("event", out _));
         Assert.False(body.TryGetProperty("count", out _));
     }
 
     [Fact]
-    public async Task Scan_Twice_SecondIsRejectedWithoutLight()
+    public async Task Scan_Twice_SecondIsRejectedWithoutEvent()
     {
         var (pin, playerId) = await StartedAsync();
         await ActionAsync(pin, playerId, "scan");
@@ -248,7 +248,7 @@ public class ControllerActionApiTests(WebApplicationFactory<Program> factory) : 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.False(body.GetProperty("ok").GetBoolean());
         Assert.True(body.TryGetProperty("message", out _));
-        Assert.False(body.TryGetProperty("light", out _));
+        Assert.False(body.TryGetProperty("event", out _));
     }
 
     [Fact]
@@ -301,7 +301,7 @@ public class ControllerActionApiTests(WebApplicationFactory<Program> factory) : 
     }
 
         [Fact]
-    public async Task Dig_TreasureInFront_ReturnsYellowLight()
+    public async Task Dig_TreasureInFront_ReturnsTreasureEvent()
     {
         var (pin, playerId) = await StartedAsync();
         PrepareInFront(pin, playerId, TileContent.Treasure);
@@ -309,14 +309,14 @@ public class ControllerActionApiTests(WebApplicationFactory<Program> factory) : 
         var body = await BodyAsync(await ActionAsync(pin, playerId, "dig"));
 
         Assert.True(body.GetProperty("ok").GetBoolean());
-        Assert.Equal("yellow", body.GetProperty("light").GetString());
+        Assert.Equal("treasure", body.GetProperty("event").GetString());
         Assert.False(body.TryGetProperty("count", out _));
     }
 
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
-    public async Task Dig_EmptyTile_CreatesVisibleHoleAndReturnsLightOff(bool scanned)
+    public async Task Dig_EmptyTile_CreatesVisibleHoleAndReturnsNoEvent(bool scanned)
     {
         var (pin, playerId) = await StartedAsync();
         PrepareInFront(pin, playerId, TileContent.Empty);
@@ -327,7 +327,7 @@ public class ControllerActionApiTests(WebApplicationFactory<Program> factory) : 
         var body = await BodyAsync(await ActionAsync(pin, playerId, "dig"));
 
         Assert.True(body.GetProperty("ok").GetBoolean());
-        Assert.Equal("off", body.GetProperty("light").GetString());
+        Assert.Equal("none", body.GetProperty("event").GetString());
         var player = await PlayerAsync(pin);
         Assert.Equal((int)TileContent.Hole, player.GetProperty("view")[7].GetInt32());
         Assert.Equal(0, player.GetProperty("score").GetInt32());
@@ -357,7 +357,7 @@ public class ControllerActionApiTests(WebApplicationFactory<Program> factory) : 
         var dig = await BodyAsync(await ActionAsync(pin, playerId, "dig"));
 
         Assert.True(dig.GetProperty("ok").GetBoolean());
-        Assert.Equal("off", dig.GetProperty("light").GetString());
+        Assert.Equal("none", dig.GetProperty("event").GetString());
         Assert.False(dig.TryGetProperty("count", out _));
         Assert.Equal(TileContent.Hole, board[tile].Visible());
         var player = await PlayerAsync(pin);
@@ -378,7 +378,7 @@ public class ControllerActionApiTests(WebApplicationFactory<Program> factory) : 
     }
 
     [Fact]
-    public async Task Move_OntoPointMine_ReturnsPurpleLight()
+    public async Task Move_OntoPointMine_ReturnsPointMineEvent()
     {
         var (pin, playerId) = await StartedAsync();
         PrepareInFront(pin, playerId, TileContent.PointMine);
@@ -386,11 +386,11 @@ public class ControllerActionApiTests(WebApplicationFactory<Program> factory) : 
         var body = await BodyAsync(await ActionAsync(pin, playerId, "move"));
 
         Assert.True(body.GetProperty("ok").GetBoolean());
-        Assert.Equal("purple", body.GetProperty("light").GetString());
+        Assert.Equal("pointMine", body.GetProperty("event").GetString());
     }
 
     [Fact]
-    public async Task Dig_UnscannedFreezeMine_ReturnsBlueLight()
+    public async Task Dig_UnscannedFreezeMine_ReturnsFreezeMineEvent()
     {
         var (pin, playerId) = await StartedAsync();
         PrepareInFront(pin, playerId, TileContent.FreezeMine);
@@ -398,11 +398,11 @@ public class ControllerActionApiTests(WebApplicationFactory<Program> factory) : 
         var body = await BodyAsync(await ActionAsync(pin, playerId, "dig"));
 
         Assert.True(body.GetProperty("ok").GetBoolean());
-        Assert.Equal("blue", body.GetProperty("light").GetString());
+        Assert.Equal("freezeMine", body.GetProperty("event").GetString());
     }
 
     [Fact]
-    public async Task Dig_ScannedMine_ReturnsLightOff()
+    public async Task Dig_ScannedMine_ReturnsNoEvent()
     {
         var (pin, playerId) = await StartedAsync();
         PrepareInFront(pin, playerId, TileContent.PointMine);
@@ -411,11 +411,11 @@ public class ControllerActionApiTests(WebApplicationFactory<Program> factory) : 
         var body = await BodyAsync(await ActionAsync(pin, playerId, "dig"));
 
         Assert.True(body.GetProperty("ok").GetBoolean());
-        Assert.Equal("off", body.GetProperty("light").GetString());
+        Assert.Equal("none", body.GetProperty("event").GetString());
     }
 
     [Fact]
-    public async Task Move_WhileFrozen_IsRejectedWithoutLight()
+    public async Task Move_WhileFrozen_IsRejectedWithoutEvent()
     {
         var (pin, playerId) = await StartedAsync();
         PrepareInFront(pin, playerId, TileContent.FreezeMine);
@@ -424,6 +424,6 @@ public class ControllerActionApiTests(WebApplicationFactory<Program> factory) : 
         var body = await BodyAsync(await ActionAsync(pin, playerId, "rotate", "LEFT"));
 
         Assert.False(body.GetProperty("ok").GetBoolean());
-        Assert.False(body.TryGetProperty("light", out _));
+        Assert.False(body.TryGetProperty("event", out _));
     }
 }
