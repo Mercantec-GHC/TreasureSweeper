@@ -76,7 +76,7 @@ The firmware talks HTTPS (`WiFiSSLClient`). The protocol is described in [docs/c
 | ----- | ------- |
 | Red | Scan: a mine is on the tile in front |
 | Yellow | Dig: treasure found |
-| Purple | Point mine set off (−25) |
+| Red | Point mine set off (−25) |
 | Blue | Freeze mine set off: frozen for 5 s |
 
 The full rules are in [docs/game-rules.md](docs/game-rules.md). The home page of the app shows a short player-friendly version.
