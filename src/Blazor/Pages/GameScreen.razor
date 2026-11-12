@@ -350,6 +350,7 @@
 		game = null;
 		gameDisplay = null;
 		hostedGame = false;
+		gameOverDismissed = false;
 		message = "You have left the game.";
 	}
 
@@ -371,6 +372,7 @@
 
 	private async Task OnGameChanged()
 	{
+		if (game?.Phase != GamePhase.Ended) gameOverDismissed = false;
 		if (gameDisplay == null) mapLoadPending = true;
 		StateHasChanged();
 		await LoadMap();
