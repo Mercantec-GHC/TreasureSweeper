@@ -33,6 +33,28 @@ public class ControllerHeartbeatApiTests(WebApplicationFactory<Program> factory)
     }
 
     [Fact]
+    public async Task BeforeRoundStarts_HasNoView()
+    {
+        var (pin, playerId) = await JoinedAsync();
+
+        var body = await (await HeartbeatAsync(pin, playerId, "OPLA_A")).Content.ReadFromJsonAsync<JsonElement>();
+
+        Assert.False(body.TryGetProperty("view", out _));
+    }
+
+    [Fact]
+    public async Task DuringRound_ReturnsViewAndFacing()
+    {
+        var (pin, playerId) = await JoinedAsync();
+        await _client.PostAsync($"/api/games/{pin}/start", null);
+
+        var body = await (await HeartbeatAsync(pin, playerId, "OPLA_A")).Content.ReadFromJsonAsync<JsonElement>();
+
+        Assert.Equal(25, body.GetProperty("view").GetArrayLength());
+        Assert.Contains(body.GetProperty("facing").GetString(), new[] { "N", "E", "S", "W" });
+    }
+
+    [Fact]
     public async Task UnknownPlayer_Returns403()
     {
         var (pin, _) = await JoinedAsync();

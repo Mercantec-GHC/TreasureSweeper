@@ -24,7 +24,7 @@ public sealed record GameResult(GameError? Error, ScanResult? Scan = null, DigRe
     public static GameResult SteppedOnMine(MineHit mine) => new(null, Mine: mine);
 }
 
-public sealed record ScanResult(Position Tile, int AdjacentMines, bool OnMine);
+public sealed record ScanResult(Position Tile, int AdjacentMines, bool OnMine, int? TreasureDistance = null);
 
 public sealed record DigResult(Position Tile, TileContent Found, int Points, bool Triggered = false);
 

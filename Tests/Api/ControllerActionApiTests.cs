@@ -223,6 +223,65 @@ public class ControllerActionApiTests(WebApplicationFactory<Program> factory) : 
         Assert.Equal(mines, body.GetProperty("count").GetInt32()); // 0 must be sent, not omitted
     }
 
+    [Fact]
+    public async Task Scan_ReturnsTreasureDistance()
+    {
+        var (pin, playerId) = await StartedAsync();
+        var (game, state, _) = PrepareInFront(pin, playerId, TileContent.Empty);
+        ClearBoard(game);
+        game.Board!.Set(state.Position, TileContent.Treasure); // one step behind the scanned tile
+
+        var body = await BodyAsync(await ActionAsync(pin, playerId, "scan"));
+
+        Assert.Equal(1, body.GetProperty("treasureDistance").GetInt32());
+    }
+
+    [Fact]
+    public async Task Scan_NoTreasuresLeft_OmitsTreasureDistance()
+    {
+        var (pin, playerId) = await StartedAsync();
+        var (game, _, _) = PrepareInFront(pin, playerId, TileContent.Empty);
+        ClearBoard(game);
+
+        var body = await BodyAsync(await ActionAsync(pin, playerId, "scan"));
+
+        Assert.True(body.GetProperty("ok").GetBoolean());
+        Assert.False(body.TryGetProperty("treasureDistance", out _));
+    }
+
+    [Fact]
+    public async Task Action_DuringRound_ReturnsView()
+    {
+        var (pin, playerId) = await StartedAsync();
+
+        var body = await BodyAsync(await ActionAsync(pin, playerId, "rotate", "LEFT"));
+
+        Assert.Equal(25, body.GetProperty("view").GetArrayLength());
+    }
+
+    [Fact]
+    public async Task ViewHash_ChangesOnlyWhenTheViewChanges()
+    {
+        var (pin, playerId) = await StartedAsync();
+        PrepareInFront(pin, playerId, TileContent.Empty);
+        var before = (await HeartbeatBodyAsync(pin, playerId)).GetProperty("viewHash").GetUInt32();
+
+        Assert.Equal(before, (await HeartbeatBodyAsync(pin, playerId)).GetProperty("viewHash").GetUInt32());
+
+        var scanned = await BodyAsync(await ActionAsync(pin, playerId, "scan"));
+        Assert.NotEqual(before, scanned.GetProperty("viewHash").GetUInt32());
+    }
+
+    private async Task<JsonElement> HeartbeatBodyAsync(string pin, string playerId) =>
+        await BodyAsync(await _client.PostAsJsonAsync("/api/controller/heartbeat", new { pin, playerId, deviceId = "OPLA_A" }));
+
+    private static void ClearBoard(Game game)
+    {
+        for (var x = 0; x < game.Board!.Size; x++)
+        for (var y = 0; y < game.Board.Size; y++)
+            game.Board.Set(new(x, y), TileContent.Empty);
+    }
+
     [Theory]
     [InlineData("move", null)]
     [InlineData("rotate", "LEFT")]

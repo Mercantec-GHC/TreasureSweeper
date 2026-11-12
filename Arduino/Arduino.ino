@@ -18,8 +18,7 @@ uint32_t lastInputPoll = 0;
 
 const uint32_t LIGHT_MS = 1500;
 const uint32_t FREEZE_DURATION = 5000;
-const uint32_t PING_RING_MS = 90;
-const uint32_t PING_MS = 5 * PING_RING_MS;
+const uint32_t PING_STEP_MS = 100;
 bool lightActive = false;
 uint32_t lightStart = 0;
 uint32_t lightDuration = 0;
@@ -40,6 +39,17 @@ bool networkUsed = false;
 uint32_t lastJoinAttempt = 0;
 uint32_t lastHeartbeat = 0;
 int lastHttpStatus = 0;
+
+const int16_t DISPLAY_CENTER = 120, RING_WIDTH = 10;            // 240x240 round display
+const int16_t CELL = 30, GRID_X = DISPLAY_CENTER - CELL * 5 / 2, GRID_Y = GRID_X;
+const uint8_t TILE_OUTSIDE = 255;
+bool inRound = false;
+bool gameScreenShown = false;
+uint8_t view[25];
+uint8_t shownView[25];
+uint32_t viewHash = 0;
+char facing = '?', shownFacing = 0;
+int treasureDistance = -1, shownDistance = -2;
 
 void readKeys(){
   if (millis() - lastInputPoll < 4) return;
@@ -123,9 +133,9 @@ bool requestJson(const char *endpoint, JsonDocument *request, JsonDocument &repl
     String payload;
     if (request) serializeJson(*request, payload);
     String packet = request ? "POST " : "GET ";
-    Serial.println(packet);
-    Serial.println(endpoint);
-    Serial.println(payload);
+    Serial.println(packet); //-------------------------------------------------------------
+    Serial.println(endpoint); //---------------------------------------------------------------------
+    Serial.println(payload); // ---------------------------------------------------------------------------
   packet += String(GAME_PATH) + endpoint + " HTTP/1.1\r\nHost: " + SERVER_HOST;
   packet += "\r\nAccept: application/json\r\nAccept-Encoding: identity";
   packet += "\r\nConnection: keep-alive\r\n";
@@ -136,8 +146,7 @@ bool requestJson(const char *endpoint, JsonDocument *request, JsonDocument &repl
   packet += "\r\n";
   packet += payload;
   readKeys();
-  Serial.print("packet");
-  Serial.println(packet.c_str());
+  Serial.println(packet.c_str()); //-----------------------------------------------------------------------------------------
   size_t sent = transport.write((const uint8_t *)packet.c_str(), packet.length());
   readKeys();
   if (sent != packet.length()){
@@ -148,7 +157,8 @@ bool requestJson(const char *endpoint, JsonDocument *request, JsonDocument &repl
     lastHttpStatus = response.status;
     ControllerBodyStream bodyStream(transport, response.chunked, response.length);
     JsonDocument filter;
-    const char *fields[] = {"ok", "playerId", "error", "message", "event", "count", "number", "color"};
+    const char *fields[] = {"ok", "playerId", "error", "message", "event", "count", "number", "color",
+                            "facing", "treasureDistance", "view", "viewHash"};
     for (const char *field : fields) filter[field] = true;
     DeserializationError error = deserializeJson(
       reply, bodyStream, DeserializationOption::Filter(filter));
@@ -167,6 +177,9 @@ bool requestJson(const char *endpoint, JsonDocument *request, JsonDocument &repl
     Serial.println(lastError);
     return false;
   }
+  String replyPayload; //---------------------------------------------------------
+  serializeJson(reply, replyPayload); //---------------------------------------------------------
+  Serial.println(replyPayload); //--------------------------------------------
   if (lastHttpStatus >= 200 && lastHttpStatus < 300) return true;
   lastError = reply["error"] | (reply["message"] | "Forespoergsel afvist");
   Serial.println(String("HTTP ") + lastHttpStatus + ": " + lastError);
@@ -198,13 +211,23 @@ uint16_t parseColor(const String &hex){
   if (hex.length() < 7 || hex[0] != '#') return 0xFFFF;         // white fallback
   long v = strtol(hex.c_str() + 1, nullptr, 16);
   uint8_t r = (v >> 16) & 0xFF, g = (v >> 8) & 0xFF, b = v & 0xFF;
+  // The display washes out mixed colours, so stretch to full saturation (grey stays as is).
+  uint8_t lo = min(r, min(g, b)), hi = max(r, max(g, b));
+  if (hi > lo) {
+    r = (r - lo) * 255 / (hi - lo);
+    g = (g - lo) * 255 / (hi - lo);
+    b = (b - lo) * 255 / (hi - lo);
+  }
   return carrier.display.color565(r, g, b);                     // hex -> RGB565
 }
 
 void showIdentity(){
+  gameScreenShown = false;
   carrier.display.setRotation(180);
-  carrier.display.fillScreen(parseColor(playerColorHex));
-  carrier.display.setTextColor(0x0000);                         // black
+  carrier.display.fillScreen(0x0000);
+  carrier.display.fillCircle(DISPLAY_CENTER, DISPLAY_CENTER, DISPLAY_CENTER, parseColor(playerColorHex));
+  carrier.display.fillCircle(DISPLAY_CENTER, DISPLAY_CENTER, DISPLAY_CENTER - RING_WIDTH, 0x0000);
+  carrier.display.setTextColor(0xFFFF);                         // white
   carrier.display.setTextSize(2);
   carrier.display.setCursor(80, 70);
   carrier.display.print("Player");
@@ -213,9 +236,96 @@ void showIdentity(){
   carrier.display.print(playerNumber);
 }
 
+// Tile values are TileContent from the server (src/Domain/Boards/TileContent.cs).
+uint16_t tileColor(uint8_t t) {
+  switch (t) {
+    case 144: return 0x8200;                                    // hole, brown
+    case 160: return 0xFFE0;                                    // treasure, yellow
+    case 192: return 0x07FF;                                    // freeze mine, cyan
+    case 224: return 0xF800;                                    // point mine, red
+  }
+  return t >= 128 && t <= 136 ? 0xC618 : 0x4208;                // scanned light grey : unexplored dark grey
+}
+
+void drawTile(int i) {
+  int16_t x = GRID_X + (i % 5) * CELL, y = GRID_Y + (i / 5) * CELL;
+  uint8_t t = view[i];
+  carrier.display.fillRect(x, y, CELL, CELL, 0x0000);
+  if (t == TILE_OUTSIDE) return;
+  carrier.display.fillRect(x + 1, y + 1, CELL - 2, CELL - 2, tileColor(t));
+  if (t >= 128 && t <= 136) {
+    carrier.display.setTextColor(0x0000);
+    carrier.display.setTextSize(2);
+    carrier.display.setCursor(x + 10, y + 8);
+    carrier.display.print(t - 128);
+  }
+  if (i == 12) {                                                // the player, pointing up = facing
+    int16_t cx = x + CELL / 2;
+    carrier.display.fillTriangle(cx, y + 5, x + 6, y + CELL - 6, x + CELL - 6, y + CELL - 6,
+                                 parseColor(playerColorHex));
+  }
+}
+
+// Only redraws what changed, so the screen doesn't flicker on every heartbeat.
+void renderGame(bool viewChanged) {
+  bool full = !gameScreenShown;
+  if (full) {
+    carrier.display.fillCircle(DISPLAY_CENTER, DISPLAY_CENTER, DISPLAY_CENTER - RING_WIDTH, 0x0000);
+    gameScreenShown = true;
+  }
+  if (full || viewChanged) {
+    for (int i = 0; i < 25; i++) {
+      if (full || view[i] != shownView[i]) drawTile(i);
+      shownView[i] = view[i];
+    }
+  }
+  if (full || facing != shownFacing) {
+    carrier.display.fillRect(110, 20, 20, 18, 0x0000);
+    carrier.display.setTextColor(0xFFFF);
+    carrier.display.setTextSize(2);
+    carrier.display.setCursor(115, 22);
+    carrier.display.print(facing);
+    shownFacing = facing;
+  }
+  if (full || treasureDistance != shownDistance) {
+    carrier.display.fillRect(20, 150, 25, 16, 0x0000);
+    if (treasureDistance >= 0) {
+      carrier.display.setTextColor(0xFFE0);
+      carrier.display.setTextSize(2);
+      carrier.display.setCursor(treasureDistance < 10 ? 28 : 22, 150);
+      carrier.display.print(treasureDistance);
+    }
+    shownDistance = treasureDistance;
+  }
+}
+
+// The server only sends `view` while a round is running.
+void applyGameState(JsonDocument &reply) {
+  if (lastHttpStatus != 200) return;
+  JsonArray tiles = reply["view"].as<JsonArray>();
+  if (tiles.isNull() || tiles.size() != 25) {
+    if (inRound) {
+      inRound = false;
+      treasureDistance = -1;
+      showIdentity();
+    }
+    return;
+  }
+  uint32_t hash = reply["viewHash"] | 0UL;
+  bool viewChanged = !gameScreenShown || hash == 0 || hash != viewHash;
+  if (viewChanged) {
+    for (int i = 0; i < 25; i++) view[i] = tiles[i].isNull() ? TILE_OUTSIDE : tiles[i].as<uint8_t>();
+    viewHash = hash;
+  }
+  const char *f = reply["facing"];
+  if (f && f[0]) facing = f[0];
+  if (reply["treasureDistance"].is<int>()) treasureDistance = reply["treasureDistance"];
+  inRound = true;
+  renderGame(viewChanged);
+}
+
 void setLed(int i, uint8_t r, uint8_t g, uint8_t b) {
-  // Carrier LEDs take (green, red, blue)
-  carrier.leds.setPixelColor(i, g, r, b);
+  carrier.leds.setPixelColor(i, r, g, b);
 }
 
 void setAllLeds(uint8_t r, uint8_t g, uint8_t b) {
@@ -230,14 +340,15 @@ void startPing(uint8_t r, uint8_t g) {
   pingFrame = -1;
 }
 
-// Sonar ping: a ring expands from the middle LED outwards with a faint trail, then a short pause.
+// Radar sweep: a beam spins round the 5 LEDs with a fading tail.
 void drawPing(uint32_t elapsed) {
-  int ring = (elapsed % PING_MS) / PING_RING_MS;
-  if (ring == pingFrame) return;
-  pingFrame = ring;
+  int frame = elapsed / PING_STEP_MS;
+  if (frame == pingFrame) return;
+  pingFrame = frame;
+  int head = frame % 5;
   for (int i = 0; i < 5; i++) {
-    int distance = abs(i - 2);
-    uint8_t level = distance == ring ? 255 : distance == ring - 1 ? 40 : 0;
+    int age = (head - i + 5) % 5;
+    uint8_t level = age == 0 ? 255 : age == 1 ? 70 : age == 2 ? 15 : 0;
     setLed(i, pingR * level / 255, pingG * level / 255, 0);
   }
   carrier.leds.show();
@@ -251,7 +362,7 @@ void onEvent(const char *event) {
   else if (strcmp(event, "clearAhead") == 0) startPing(0, 255);
   else if (strcmp(event, "treasure") == 0) setAllLeds(255, 180, 0);
   else if (strcmp(event, "pointMine") == 0) setAllLeds(255, 0, 0);
-  else if (strcmp(event, "freezeMine") == 0) { setAllLeds(0, 0, 255); lightDuration = FREEZE_DURATION; }
+  else if (strcmp(event, "freezeMine") == 0) { setAllLeds(0, 255, 255); lightDuration = FREEZE_DURATION; }
   else { setAllLeds(0, 0, 0); lightActive = false; return; }
   lightActive = true;
   lightStart = millis();
@@ -288,8 +399,10 @@ void joinGame(){
   playerId = assignedId;
   playerNumber   = reply["number"] | 0;
   playerColorHex = reply["color"] | "#FFFFFF";
+  inRound = false;
   showIdentity();
   Serial.print("Number "); Serial.println(playerNumber);
+  Serial.print("Color "); Serial.println(playerColorHex);
   ready = true;
   releaseBeforePlay = true;
   resetControls();
@@ -304,6 +417,7 @@ void heartbeat(){
   bool wasReady = ready;
   bool ok = postController("/api/controller/heartbeat", request, reply);
   lastHeartbeat = millis();
+  applyGameState(reply);
   if (!ok){
     if (lastHttpStatus == 200 && reply["ok"].is<bool>() && !reply["ok"].as<bool>()) forgetSession();
     return;
@@ -322,7 +436,9 @@ bool sendAction(const char *action, const char *direction = nullptr){
   identity(request);
   request["action"] = action;
   if (direction) request["params"]["direction"] = direction;
-  return postController("/api/controller/action", request, reply);
+  bool ok = postController("/api/controller/action", request, reply);
+  applyGameState(reply);
+  return ok;
 }
 // 00 = scan
 // 01 = rotate left

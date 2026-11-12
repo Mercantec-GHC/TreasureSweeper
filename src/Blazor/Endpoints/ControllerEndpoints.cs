@@ -68,10 +68,10 @@ internal static class ControllerEndpoints
         ControllerHeartbeatRequest request, GameRegistry registry
     )
     {
-        if (!TryResolve(registry, request.Pin, request.PlayerId, request.DeviceId, out _, out _, out var error))
+        if (!TryResolve(registry, request.Pin, request.PlayerId, request.DeviceId, out var game, out var player, out var error))
             return error;
 
-        return Reply(StatusCodes.Status200OK, ControllerResponse.Success());
+        return Reply(StatusCodes.Status200OK, WithView(ControllerResponse.Success(), game, player));
     }
 
     private static JsonHttpResult<ControllerResponse> Action(
@@ -86,19 +86,32 @@ internal static class ControllerEndpoints
             return Reply(StatusCodes.Status400BadRequest, ControllerResponse.Fail("Unknown action or direction"));
 
         var result = game.Act(player, action);
-        var facing = Compass(game.StateOf(player.Id)?.Facing);
         if (!result.Success)
             return Reply(StatusCodes.Status200OK,
-                ControllerResponse.Rejected(result.Error!.Value.ToHttp().Message) with { Facing = facing });
+                WithView(ControllerResponse.Rejected(result.Error!.Value.ToHttp().Message), game, player));
 
         var body = result switch
         {
-            { Scan: { } scan } => ControllerResponse.Scanned(scan.OnMine, scan.AdjacentMines),
+            { Scan: { } scan } => ControllerResponse.Scanned(scan.OnMine, scan.AdjacentMines, scan.TreasureDistance),
             { Dig: { } dig } => ControllerResponse.Dug(DigEvent(dig)),
             { Mine: { } mine } => ControllerResponse.Stepped(MineEvent(mine.Mine)),
             _ => ControllerResponse.Success() 
         };
-        return Reply(StatusCodes.Status200OK, body with { Facing = facing });
+        return Reply(StatusCodes.Status200OK, WithView(body, game, player));
+    }
+
+    // The 5x5 view is only sent while a round is running, so the controller knows when to show it.
+    private static ControllerResponse WithView(ControllerResponse body, Game game, Player player)
+    {
+        var state = game.StateOf(player.Id);
+        var board = game.Board;
+        var view = game.Phase == GamePhase.Playing && state is not null && board is not null ? board.ViewFor(state) : null;
+        return body with
+        {
+            Facing = Compass(state?.Facing),
+            View = view,
+            ViewHash = view is null ? null : GameMappings.ViewHash(view),
+        };
     }
 
     private static string? Compass(Direction? facing) => facing switch

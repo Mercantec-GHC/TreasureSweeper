@@ -14,7 +14,10 @@ public sealed record ControllerResponse(
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? Event = null,
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] int? Count = null,
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? Color = null,
-    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? Facing = null
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? Facing = null,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] int? TreasureDistance = null,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] IReadOnlyList<int?>? View = null,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] uint? ViewHash = null
 )
 {
     public static ControllerResponse Joined(string playerId, string name, int number, string color, bool reconnected) =>
@@ -26,8 +29,9 @@ public sealed record ControllerResponse(
 
     public static ControllerResponse Rejected(string message) => new(false, Message: message);
 
-    public static ControllerResponse Scanned(bool onMine, int count = 0) =>
-        new(true, Event: onMine ? ControllerEvent.MineAhead : ControllerEvent.ClearAhead, Count: count);
+    public static ControllerResponse Scanned(bool onMine, int count = 0, int? treasureDistance = null) =>
+        new(true, Event: onMine ? ControllerEvent.MineAhead : ControllerEvent.ClearAhead, Count: count,
+            TreasureDistance: treasureDistance);
 
     public static ControllerResponse Dug(string @event) => new(true, Event: @event);
 

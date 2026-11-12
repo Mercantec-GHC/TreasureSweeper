@@ -71,6 +71,24 @@ public class ScanTests
     }
 
     [Fact]
+    public void Scan_ReportsManhattanDistanceToNearestTreasure()
+    {
+        var (game, player, _, _) = StartedSolo();
+        game.Board!.Set(new(12, 11), TileContent.Treasure); // Manhattan 4, Chebyshev 2
+        game.Board.Set(new(13, 9), TileContent.Treasure);   // Manhattan 3
+
+        Assert.Equal(3, game.Act(player, SCAN).Scan!.TreasureDistance);
+    }
+
+    [Fact]
+    public void Scan_NoTreasuresLeft_HasNoTreasureDistance()
+    {
+        var (game, player, _, _) = StartedSolo();
+
+        Assert.Null(game.Act(player, SCAN).Scan!.TreasureDistance);
+    }
+
+    [Fact]
     public void Scan_SameMineTwice_IsRecordedOnce()
     {
         var (game, player, state, time) = StartedSolo();

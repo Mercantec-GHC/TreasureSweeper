@@ -172,7 +172,7 @@ public sealed class Game(string pin, TimeProvider? time = null)
 
         state.NextScanAt = now + SCAN_COOLDOWN;
         var count = Board.Reveal(tile);
-        var scan = new ScanResult(tile, count, Board[tile].IsMine());
+        var scan = new ScanResult(tile, count, Board[tile].IsMine(), Board.NearestTreasureDistance(tile));
         state.RecordScan(scan);
         return GameResult.Scanned(scan);
     }

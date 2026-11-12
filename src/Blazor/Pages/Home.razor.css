@@ -91,7 +91,7 @@
 .dot.red { background: #ff3030; box-shadow: 0 0 10px #ff3030; }
 .dot.yellow { background: #ffd23f; box-shadow: 0 0 10px #ffd23f; }
 .dot.purple { background: #b84dff; box-shadow: 0 0 10px #b84dff; }
-.dot.blue { background: #3a8bff; box-shadow: 0 0 10px #3a8bff; }
+.dot.cyan { background: #00e5ff; box-shadow: 0 0 10px #00e5ff; }
 .dot.green { background: #39ff14; box-shadow: 0 0 10px #39ff14; }
 
 .card {

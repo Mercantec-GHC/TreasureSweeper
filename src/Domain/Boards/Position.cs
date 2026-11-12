@@ -6,6 +6,9 @@ public readonly record struct Position(int X, int Y)
     public int DistanceTo(Position other) =>
         Math.Max(Math.Abs(X - other.X), Math.Abs(Y - other.Y));
 
+    public int ManhattanDistanceTo(Position other) =>
+        Math.Abs(X - other.X) + Math.Abs(Y - other.Y);
+
     public Position Step(Direction d) => d switch 
     {
         Direction.Up      => this with { Y = Y - 1 },
