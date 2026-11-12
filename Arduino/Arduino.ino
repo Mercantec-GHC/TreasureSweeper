@@ -16,10 +16,16 @@ uint8_t rawMask = 0;
 uint8_t keys = 0;
 uint32_t lastInputPoll = 0;
 
-bool gameStarted = false;
-bool freezeLightActive = false;
-uint32_t freezeLightStart = 0;
-const uint32_t FREEZE_LIGHT_DURATION = 5000;
+const uint32_t LIGHT_MS = 1500;
+const uint32_t FREEZE_DURATION = 5000;
+const uint32_t PING_RING_MS = 90;
+const uint32_t PING_MS = 5 * PING_RING_MS;
+bool lightActive = false;
+uint32_t lightStart = 0;
+uint32_t lightDuration = 0;
+bool pinging = false;
+int pingFrame = -1;
+uint8_t pingR = 0, pingG = 0;
 
 ControllerClient transport;
 String playerId;
@@ -142,7 +148,7 @@ bool requestJson(const char *endpoint, JsonDocument *request, JsonDocument &repl
     lastHttpStatus = response.status;
     ControllerBodyStream bodyStream(transport, response.chunked, response.length);
     JsonDocument filter;
-    const char *fields[] = {"ok", "playerId", "error", "message", "side", "number", "color"};
+    const char *fields[] = {"ok", "playerId", "error", "message", "event", "count", "number", "color"};
     for (const char *field : fields) filter[field] = true;
     DeserializationError error = deserializeJson(
       reply, bodyStream, DeserializationOption::Filter(filter));
@@ -175,16 +181,6 @@ bool requestJson(const char *endpoint, JsonDocument *request, JsonDocument &repl
 
 bool postController(const char *endpoint, JsonDocument &request, JsonDocument & reply){
   bool responseOk = requestJson(endpoint, &request, reply);
-
-  String serverMessage = reply["message"] | "";
-  if (!serverMessage.length()) {
-    serverMessage = reply["error"] | "";
-  }
-
-  if (serverMessage.indexOf("Player is frozen") >= 0) {
-    freezeMine();
-  }
-
   if (!responseOk || !reply["ok"].as<bool>()){
     if(lastHttpStatus == 403 || lastHttpStatus == 404) forgetSession();
     if (responseOk){
@@ -193,6 +189,8 @@ bool postController(const char *endpoint, JsonDocument &request, JsonDocument & 
     }
     return false;
   }
+  const char *event = reply["event"];
+  if (event) onEvent(event);
   return true;
 }
 
@@ -215,31 +213,66 @@ void showIdentity(){
   carrier.display.print(playerNumber);
 }
 
+void setLed(int i, uint8_t r, uint8_t g, uint8_t b) {
+  // Carrier LEDs take (green, red, blue)
+  carrier.leds.setPixelColor(i, g, r, b);
+}
+
 void setAllLeds(uint8_t r, uint8_t g, uint8_t b) {
-  carrier.leds.clear();
-
-  for (int i = 0; i < 5; i++) {
-    carrier.leds.setPixelColor(i, r, g, b);
-  }
-
+  for (int i = 0; i < 5; i++) setLed(i, r, g, b);
   carrier.leds.show();
 }
 
-void freezeMine() {
-  setAllLeds(0, 0, 255);
-
-  freezeLightActive = true;
-  freezeLightStart = millis();
+void startPing(uint8_t r, uint8_t g) {
+  pingR = r;
+  pingG = g;
+  pinging = true;
+  pingFrame = -1;
 }
-void updateFreezeLight() {
-  if (freezeLightActive &&
-      millis() - freezeLightStart >= FREEZE_LIGHT_DURATION) {
 
-    setAllLeds(0, 0, 0);
-    freezeLightActive = false;
-
-    Serial.println("Freeze light turned off");
+// Sonar ping: a ring expands from the middle LED outwards with a faint trail, then a short pause.
+void drawPing(uint32_t elapsed) {
+  int ring = (elapsed % PING_MS) / PING_RING_MS;
+  if (ring == pingFrame) return;
+  pingFrame = ring;
+  for (int i = 0; i < 5; i++) {
+    int distance = abs(i - 2);
+    uint8_t level = distance == ring ? 255 : distance == ring - 1 ? 40 : 0;
+    setLed(i, pingR * level / 255, pingG * level / 255, 0);
   }
+  carrier.leds.show();
+}
+
+// Events from docs/controller-api.md; unknown events turn the LEDs off.
+void onEvent(const char *event) {
+  lightDuration = LIGHT_MS;
+  pinging = false;
+  if (strcmp(event, "mineAhead") == 0) startPing(255, 0);
+  else if (strcmp(event, "clearAhead") == 0) startPing(0, 255);
+  else if (strcmp(event, "treasure") == 0) setAllLeds(255, 180, 0);
+  else if (strcmp(event, "pointMine") == 0) setAllLeds(255, 0, 0);
+  else if (strcmp(event, "freezeMine") == 0) { setAllLeds(0, 0, 255); lightDuration = FREEZE_DURATION; }
+  else { setAllLeds(0, 0, 0); lightActive = false; return; }
+  lightActive = true;
+  lightStart = millis();
+}
+
+void updateLight() {
+  if (!lightActive) return;
+  uint32_t elapsed = millis() - lightStart;
+  if (elapsed >= lightDuration) {
+    setAllLeds(0, 0, 0);
+    lightActive = false;
+    pinging = false;
+  } else if (pinging) {
+    drawPing(elapsed);
+  }
+}
+
+// Keeps buttons and the scan animation alive while waiting on the network.
+void pollWhileWaiting() {
+  readKeys();
+  updateLight();
 }
 void joinGame(){
   lastJoinAttempt = millis();
@@ -257,9 +290,7 @@ void joinGame(){
   playerColorHex = reply["color"] | "#FFFFFF";
   showIdentity();
   Serial.print("Number "); Serial.println(playerNumber);
-  gameStarted = false;
   ready = true;
-  setAllLeds(0, 255, 0);
   releaseBeforePlay = true;
   resetControls();
   lastHeartbeat = millis();
@@ -279,7 +310,6 @@ void heartbeat(){
   }
   ready = true;
   if (!wasReady){
-    setAllLeds(0, 0, 0);
     releaseBeforePlay = true;
     resetControls();
     Serial.println("Forbindelsen er tilbage");
@@ -300,12 +330,6 @@ bool sendAction(const char *action, const char *direction = nullptr){
 // 03 = rotate right
 // 04 = dig
 void handleControls(uint8_t down, uint8_t pressed, uint8_t released){
-
-    if (!gameStarted && pressed != 0) {
-    gameStarted = true;
-    setAllLeds(0, 0, 0);
-  }
-
   if (released & (k1 | k2 | k3)) repeatedKey = -1;
   if (pressed & k4) {sendAction("dig"); return; }
   if (pressed & k0) {sendAction("scan"); return; }
@@ -358,7 +382,7 @@ void setup() {
   while (!Serial && millis() - started < 1500) { ; }   // just wait briefly for Serial
 
   inputs.begin();
-  transport.onPoll(readKeys);
+  transport.onPoll(pollWhileWaiting);
   WiFi.setTimeout(3000);
   transport.setRetry(false);
   lastJoinAttempt = millis() - 5000;
@@ -371,7 +395,7 @@ void setup() {
 }
 
 void loop() {
-updateFreezeLight();
+updateLight();
 networkUsed = false;
 readKeys();
 if (!ensureWifi()) {inputs.clear(); delay(5); return;}

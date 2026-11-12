@@ -47,19 +47,19 @@ Response on success:
 
 | `action` | Body |
 |---|---|
-| `move` | `{ "ok": true }`, or `{ "ok": true, "light": "purple" }` / `"blue"` when stepping onto an unscanned mine |
+| `move` | `{ "ok": true }`, or `{ "ok": true, "event": "pointMine" }` / `"freezeMine"` when stepping onto an unscanned mine |
 | `rotate` | `{ "ok": true }` |
-| `scan` | `{ "ok": true, "light": "red", "count": 2 }` |
-| `dig` | `{ "ok": true, "light": "yellow" }` (see [Dig](#dig)) |
+| `scan` | `{ "ok": true, "event": "mineAhead", "count": 2 }` |
+| `dig` | `{ "ok": true, "event": "treasure" }` (see [Dig](#dig)) |
 
-A rule rejection (cooldown, frozen, facing the edge, no round running) is always `200` with `{ "ok": false, "message": "…" }` and **never** includes `light` or `count`. The controller keeps its current light.
+A rule rejection (cooldown, frozen, facing the edge, no round running) is always `200` with `{ "ok": false, "message": "…" }` and **never** includes `event` or `count`. The controller keeps its current light.
 
 Every action response (success or rejection) also includes **`facing`**: the player's current direction as a compass point, `"N"`, `"E"`, `"S"` or `"W"` (up on the screen is `N`). It is omitted when the player has no position yet (before the first round starts).
 
 #### Scan
 
 - **Scanned tile:** the tile directly in front of the player (one step in the facing direction). The player's own tile is not scanned.
-- **`light`:** `"red"` if the scanned tile contains a mine, otherwise `"off"`.
+- **`event`:** `"mineAhead"` if the scanned tile contains a mine, otherwise `"clearAhead"`.
 - **`count`:** mines (freeze + point) in the 8 tiles around the scanned tile, `0`–`8`. The scanned tile itself is not counted. `0` is sent, not omitted.
 - The scanned tile is marked as discovered and its count appears on the screen.
 - **Cooldown:** 1 s per player (`Game.SCAN_COOLDOWN`), independent of move.
@@ -75,28 +75,31 @@ Every action response (success or rejection) also includes **`facing`**: the pla
 #### Dig
 
 - **Dug tile:** the tile directly in front of the player, the same tile scan uses. The player's own tile is not dug.
-- **`light`:** `"yellow"` for a treasure, `"purple"` for an unscanned point mine, `"blue"` for an unscanned freeze mine, otherwise `"off"`. Always present on a successful dig. No `count` is sent.
+- **`event`:** `"treasure"` for a treasure, `"pointMine"` for an unscanned point mine, `"freezeMine"` for an unscanned freeze mine, otherwise `"none"`. Always present on a successful dig. No `count` is sent.
 - An empty tile gives no points and becomes a hole, including scanned tiles showing a mine count (`MineClose0` through `MineClose8`). A treasure gives points (see [game-rules.md](game-rules.md#scoring-tunable)) and leaves a hole. An unscanned mine goes off and leaves a hole. A scanned mine is harmless and stays. Digging a hole fills it.
 - **Cooldown:** 1 s per player (`Game.DIG_COOLDOWN`), also on an empty tile. Independent of move and scan.
 - **Rejections:** the same cases and messages as scan.
 
-#### Light values
+#### Events
 
-| `light` | Sent by | Oplà |
+The server reports what happened; the firmware decides how to show it.
+
+| `event` | Sent by | Oplà |
 |---|---|---|
-| `off` | scan, safe tile; dig, nothing to collect | LEDs off |
-| `red` | scan, mine on the scanned tile | Red for `LIGHT_MS` (1.5 s), then off |
-| `yellow` | dig, treasure | Yellow for `LIGHT_MS`, then off |
-| `purple` | dig or move, unscanned point mine | Purple for `LIGHT_MS`, then off |
-| `blue` | dig or move, unscanned freeze mine | Blue while frozen (`FREEZE_DURATION`, 5 s) |
+| `none` | dig, nothing to collect | LEDs off |
+| `mineAhead` | scan, mine on the scanned tile | Red sonar ping (middle LED outwards) for `LIGHT_MS` (1.5 s), then off |
+| `clearAhead` | scan, no mine on the scanned tile | Green sonar ping for `LIGHT_MS`, then off |
+| `treasure` | dig, treasure | Yellow for `LIGHT_MS`, then off |
+| `pointMine` | dig or move, unscanned point mine | Red for `LIGHT_MS`, then off |
+| `freezeMine` | dig or move, unscanned freeze mine | Blue while frozen (`FREEZE_DURATION`, 5 s) |
 
-Reserved for later issues: `green` (won). The firmware treats unknown values as `off`.
+The firmware treats unknown events as `none`.
 
 ## Status codes
 
 | Status | When | Body | Controller reaction |
 |---|---|---|---|
-| `200` | Success | `{ ok: true }`, plus `light`/`count` for scan, `light` for dig and for a move onto a mine | Sets the light when present |
+| `200` | Success | `{ ok: true }`, plus `event`/`count` for scan, `event` for dig and for a move onto a mine | Shows the event when present |
 | `200` | Rule rejection (e.g. no round running) | `{ ok: false, message }` | Shows message, keeps session |
 | `400` | Missing PIN on join, unknown action/direction | `{ ok: false, error }` | Shows error |
 | `403` | Unknown `playerId`, or `deviceId` doesn't match | `{ ok: false, error }` | Forgets session, rejoins |
@@ -112,13 +115,13 @@ Heartbeat never returns `200 + ok:false` for a known player, because the firmwar
 
 `requestJson()` only keeps the fields listed in `fields[]` in [Arduino.ino](../Arduino/Arduino.ino). New response fields must be added there or they are silently dropped.
 
-Required: `ok`, `playerId`, `error`, `message`, `light`, `count`.
+Required: `ok`, `playerId`, `error`, `message`, `event`, `count`, `number`, `color`.
 
-Sent by the server but not used by the firmware: `name`, `number`, `reconnected`.
+Sent by the server but not used by the firmware: `name`, `reconnected`, `facing`.
 
 ## Security notes
 
 - `playerId` is a random GUID and acts as the session secret for heartbeat/action.
 - `deviceId` is derived from the MAC and is **not** secret. Anyone who knows it can call `/join` and receive that player's `playerId`. Accepted for now (local classroom network); see #50 for transport security.
 - `deviceId` is **not** truncated to 40 chars as AI-Bomberman does: truncation lets different IDs collide and impersonate each other.
-- `light` and `count` are sent only to the controller that scanned or dug. The tile's content also appears on the screen, so all players can see it.
+- `event` and `count` are sent only to the controller that scanned or dug. The tile's content also appears on the screen, so all players can see it.
