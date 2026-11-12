@@ -27,7 +27,7 @@ public sealed record ControllerResponse(
     public static ControllerResponse Rejected(string message) => new(false, Message: message);
 
     public static ControllerResponse Scanned(bool onMine, int count = 0) =>
-        new(true, Event: onMine ? ControllerEvent.MineAhead : ControllerEvent.None, Count: count);
+        new(true, Event: onMine ? ControllerEvent.MineAhead : ControllerEvent.ClearAhead, Count: count);
 
     public static ControllerResponse Dug(string @event) => new(true, Event: @event);
 
@@ -39,6 +39,7 @@ public static class ControllerEvent
 {
     public const string None = "none";
     public const string MineAhead = "mineAhead";
+    public const string ClearAhead = "clearAhead";
     public const string Treasure = "treasure";
     public const string PointMine = "pointMine";
     public const string FreezeMine = "freezeMine";
