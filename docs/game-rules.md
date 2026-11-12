@@ -39,7 +39,7 @@ A frozen player cannot move, scan or dig. A player standing in a hole may still 
 | First treasure of the round | **+1000** | The treasure disappears and leaves a hole. Points are permanent and cannot be stolen. | Yellow / orange |
 | Every later treasure | **100 less than the previous one** (900, 800, …) | The treasure disappears and leaves a hole. Points are permanent and cannot be stolen. | Yellow / orange |
 | Point mine | **−25** | A hole appears. | Red |
-| Freeze mine | 0 | The player is frozen for **5 seconds**. A hole appears. | Blue (while frozen) |
+| Freeze mine | 0 | The player is frozen for **5 seconds**. A hole appears. | Cyan (while frozen) |
 | Scanned mine | 0 | Nothing. The mine stays. | — |
 | Empty tile | 0 | A hole appears when dug. | — |
 | Hole (dig only) | 0 | The hole is filled. | — |
@@ -70,10 +70,10 @@ A solo round always ends with the player in rank 1. It ends when the single trea
 
 | Event | Oplà | Screen |
 | ----- | ---- | ------ |
-| Scan | Red sonar ping if a mine is on the tile in front, otherwise green | The scanned tile's content, or the number of mines around it |
+| Scan | Red radar sweep if a mine is on the tile in front, otherwise green | The scanned tile's content, or the number of mines around it |
 | Empty tile dug | — | A hole appears |
 | Treasure dug up | Yellow / orange | Score updated, the treasure disappears |
-| Freeze mine dug up or stepped on | Blue while frozen | Frozen message, a hole |
+| Freeze mine dug up or stepped on | Cyan while frozen | Frozen message, a hole |
 | Point mine dug up or stepped on | Red | Minus-points message, a hole |
 | Won | Green | Winner and leaderboard |
 | Treasure dug up | Yellow / orange | Score updated, the treasure becomes a hole |
@@ -104,7 +104,7 @@ See [database.md](database.md) for the schema.
 | Database schema, migrations, leaderboard and history pages | |
 | Move (turn, then step) and scan (tile in front, red light, count) | |
 | Dig (tile in front, treasure scoring, holes, yellow light, score on screen) | |
-| Mines (dig or step on unscanned: point penalty, freeze, red/blue light, holes) | |
+| Mines (dig or step on unscanned: point penalty, freeze, red/cyan light, holes) | |
 | Live scoreboard, countdown and treasures left on the game screen | |
 | Game over screen with winner and leaderboard | |
 

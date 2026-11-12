@@ -30,6 +30,21 @@ public sealed class Board
 
     public int CountAdjacentMines(Position p) => Neighbours(p).Count(n => this[n].IsMine());
 
+    /// <summary>Manhattan distance to the closest treasure still in the ground, or null when none are left.</summary>
+    public int? NearestTreasureDistance(Position from)
+    {
+        int? nearest = null;
+        for (var x = 0; x < Size; x++)
+        for (var y = 0; y < Size; y++)
+        {
+            var p = new Position(x, y);
+            if (this[p].HiddenContent() != TileContent.Treasure) continue;
+            var distance = from.ManhattanDistanceTo(p);
+            if (nearest is null || distance < nearest) nearest = distance;
+        }
+        return nearest;
+    }
+
     internal void Set(Position p, TileContent content) => _tiles[p.X, p.Y] = content;
 
     internal int Reveal(Position p)

@@ -26,7 +26,7 @@ Request:
 ```json
 { "pin": "1234", "playerId": "…", "deviceId": "OPLA_AABBCCDDEEFF" }
 ```
-Response: `{ "ok": true }`
+Response: `{ "ok": true }`, plus `facing` and `view` while a round is running (see [View](#view)).
 
 ### `/action`
 Request:
@@ -49,18 +49,25 @@ Response on success:
 |---|---|
 | `move` | `{ "ok": true }`, or `{ "ok": true, "event": "pointMine" }` / `"freezeMine"` when stepping onto an unscanned mine |
 | `rotate` | `{ "ok": true }` |
-| `scan` | `{ "ok": true, "event": "mineAhead", "count": 2 }` |
+| `scan` | `{ "ok": true, "event": "mineAhead", "count": 2, "treasureDistance": 5 }` |
 | `dig` | `{ "ok": true, "event": "treasure" }` (see [Dig](#dig)) |
 
 A rule rejection (cooldown, frozen, facing the edge, no round running) is always `200` with `{ "ok": false, "message": "…" }` and **never** includes `event` or `count`. The controller keeps its current light.
 
 Every action response (success or rejection) also includes **`facing`**: the player's current direction as a compass point, `"N"`, `"E"`, `"S"` or `"W"` (up on the screen is `N`). It is omitted when the player has no position yet (before the first round starts).
 
+#### View
+
+While a round is running, heartbeat and action responses include **`view`**: the 25 tiles around the player as a 5x5 grid, row by row, rotated so the first row is straight ahead. Index 12 is the player's own tile. Values are `TileContent` numbers (unscanned tiles show as `0`, holes as `144`), and `null` is outside the board. The field is omitted outside a round; the firmware uses that to switch back to the player screen.
+
+**`viewHash`** is sent with every `view`: a 32-bit FNV-1a checksum of the 25 tiles (`null` counted as `255`). The firmware skips copying and redrawing the grid when it matches the last one.
+
 #### Scan
 
 - **Scanned tile:** the tile directly in front of the player (one step in the facing direction). The player's own tile is not scanned.
 - **`event`:** `"mineAhead"` if the scanned tile contains a mine, otherwise `"clearAhead"`.
 - **`count`:** mines (freeze + point) in the 8 tiles around the scanned tile, `0`–`8`. The scanned tile itself is not counted. `0` is sent, not omitted.
+- **`treasureDistance`:** Manhattan distance (`|dx| + |dy|`) from the scanned tile to the nearest treasure still in the ground. `0` if the scanned tile is a treasure. Omitted when no treasures are left.
 - The scanned tile is marked as discovered and its count appears on the screen.
 - **Cooldown:** 1 s per player (`Game.SCAN_COOLDOWN`), independent of move.
 - **Rejections:**
@@ -87,11 +94,11 @@ The server reports what happened; the firmware decides how to show it.
 | `event` | Sent by | Oplà |
 |---|---|---|
 | `none` | dig, nothing to collect | LEDs off |
-| `mineAhead` | scan, mine on the scanned tile | Red sonar ping (middle LED outwards) for `LIGHT_MS` (1.5 s), then off |
-| `clearAhead` | scan, no mine on the scanned tile | Green sonar ping for `LIGHT_MS`, then off |
+| `mineAhead` | scan, mine on the scanned tile | Red radar sweep (beam spins round the LEDs) for `LIGHT_MS` (1.5 s), then off |
+| `clearAhead` | scan, no mine on the scanned tile | Green radar sweep for `LIGHT_MS`, then off |
 | `treasure` | dig, treasure | Yellow for `LIGHT_MS`, then off |
 | `pointMine` | dig or move, unscanned point mine | Red for `LIGHT_MS`, then off |
-| `freezeMine` | dig or move, unscanned freeze mine | Blue while frozen (`FREEZE_DURATION`, 5 s) |
+| `freezeMine` | dig or move, unscanned freeze mine | Cyan while frozen (`FREEZE_DURATION`, 5 s) |
 
 The firmware treats unknown events as `none`.
 
@@ -115,13 +122,13 @@ Heartbeat never returns `200 + ok:false` for a known player, because the firmwar
 
 `requestJson()` only keeps the fields listed in `fields[]` in [Arduino.ino](../Arduino/Arduino.ino). New response fields must be added there or they are silently dropped.
 
-Required: `ok`, `playerId`, `error`, `message`, `event`, `count`, `number`, `color`.
+Required: `ok`, `playerId`, `error`, `message`, `event`, `count`, `number`, `color`, `facing`, `treasureDistance`, `view`, `viewHash`.
 
-Sent by the server but not used by the firmware: `name`, `reconnected`, `facing`.
+Sent by the server but not used by the firmware: `name`, `reconnected`.
 
 ## Security notes
 
 - `playerId` is a random GUID and acts as the session secret for heartbeat/action.
 - `deviceId` is derived from the MAC and is **not** secret. Anyone who knows it can call `/join` and receive that player's `playerId`. Accepted for now (local classroom network); see #50 for transport security.
 - `deviceId` is **not** truncated to 40 chars as AI-Bomberman does: truncation lets different IDs collide and impersonate each other.
-- `event` and `count` are sent only to the controller that scanned or dug. The tile's content also appears on the screen, so all players can see it.
+- `event`, `count` and `treasureDistance` are sent only to the controller that scanned or dug. The tile's content also appears on the screen, so all players can see it.

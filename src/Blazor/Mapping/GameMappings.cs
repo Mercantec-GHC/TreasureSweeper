@@ -40,6 +40,15 @@ internal static class GameMappings
         return tiles;
     }
 
+    // FNV-1a over the tiles (null = 255), so the controller can skip redrawing an unchanged view.
+    public static uint ViewHash(IReadOnlyList<int?> view)
+    {
+        var hash = 2166136261u;
+        foreach (var tile in view)
+            hash = (hash ^ (byte)(tile ?? 255)) * 16777619u;
+        return hash;
+    }
+
     private static int Visible(DomainBoards.TileContent t) =>
         t.IsDiscovered() ? (int)t : (int)t & HOLE_BIT;
 
